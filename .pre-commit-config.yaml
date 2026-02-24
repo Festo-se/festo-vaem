@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.15.1
+    hooks:
+      # Run the linter.
+      - id: ruff-check
+        stages: [pre-push]
+        args: [--fix, --config, ./pyproject.toml]
+      # Run the formatter.
+      - id: ruff-format
+        stages: [pre-push]
+        args: [--config, ./pyproject.toml]
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.10.0
+    hooks:
+      - id: uv-lock
+        stages: [pre-push]

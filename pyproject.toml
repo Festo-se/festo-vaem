@@ -1,0 +1,96 @@
+[project]
+name = "festo-vaem"
+description = "Library to control Festo Lifetech VAEM 8 Channel Valve Control Device"
+readme = {file = "README.md", content-type = "text/markdown"}
+authors = [
+    {name = "Joshua Dang", email = "joshua.dang@festo.com"},
+    {name = "Kyle Wardlow", email = "kyle.wardlow@festo.com"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = ["Festo", "Valve", "Valves", "Actuation", "Valve Controller", "Controller"]
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "pymodbus<=3.11.4",
+    'rich>=14.0.0',
+]
+
+[project.urls]
+Homepage = "https://github.com/Festo-se/festo-vaem"
+Repository = "https://github.com/Festo-se/festo-vaem.git"
+Issues = "https://github.com/Festo-se/festo-vaem/issues"
+
+[project.optional-dependencies]
+serial = [
+    "pyserial<=3.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.17,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pyserial<=3.5",
+    "pymodbus[simulator]<=3.11.4",
+    "pytest>=9.0.1",
+    "ruff"
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-autoapi>=0.4.1",
+    "mkdocs-autorefs>=1.4.2",
+    "mkdocs-include-markdown-plugin>=7.1.5",
+    "mkdocs-material>=9.6.14",
+    "mkdocstrings[python]>=0.29.1",
+    "mkdocs-codeinclude-plugin>=0.2.1",
+]
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true } }]
+
+[tool.uv.build-backend]
+module-name = "vaem"
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+target-version = "py311"
+src = ["src", "examples"]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".vscode",
+    ".venv",
+    ".pytest_cache",
+    "tests",
+]
+fix = true
+show-fixes = true
+
+[tool.ruff.lint]
+select = ["D", "E4", "E7", "E9", "F", "C901", "B", "S"]
+ignore = ["D203", "D212"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "double"
+line-ending = "auto"
+docstring-code-format = true
+exclude = [
+    ".git",
+    "__pycache__",
+    ".vscode",
+    ".venv",
+    ".pytest_cache",
+    "tests",
+]
