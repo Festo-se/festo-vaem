@@ -3,6 +3,9 @@
 from os import getenv
 
 from vaem import VAEM, VAEMTCPConfig
+from festo_python_logging import configure_logging
+
+configure_logging(verbose=True, silence=["pymodbus.logging"])
 
 ip = getenv("VAEM_IP", "192.168.0.1")
 
