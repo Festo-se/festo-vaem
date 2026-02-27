@@ -5,13 +5,12 @@ This module handles all communication underneath the hood
  and abstracting it all from the user.
 """
 
+import logging
 import struct
 from abc import ABC, abstractmethod
 
 from pymodbus.client import ModbusBaseClient, ModbusSerialClient, ModbusTcpClient
 from pymodbus.exceptions import ModbusException, ModbusIOException
-
-from vaem.utils.logging import Logging
 
 from .vaem_config import VAEMConfig, VAEMSerialConfig, VAEMTCPConfig
 from .vaem_helper import (
@@ -22,6 +21,8 @@ from .vaem_helper import (
     VaemOperatingMode,
     vaemValveIndex,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class VAEMModbusClient(ABC):
@@ -91,7 +92,7 @@ class VAEMModbusClient(ABC):
             case 0x01 | 0x02 | 0x04 | 0x05 | 0x06 | 0x11:
                 pass
             case _:
-                Logging.logger.error("Currently unsupported input param")
+                logger.error("Currently unsupported input param")
 
         return out
 
@@ -145,7 +146,7 @@ class VAEMModbusClient(ABC):
             for i in range(0, len(tmp) - 1, 2):
                 frame.append((tmp[i] << 8) + tmp[i + 1])
         except ValueError as e:
-            Logging.logger.error("Value error: %s. ", str(e))
+            logger.error("Value error: %s. ", str(e))
         return frame
 
     def _deconstruct_frame(self, frame) -> dict:
