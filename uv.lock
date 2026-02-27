@@ -330,8 +330,17 @@ wheels = [
 ]
 
 [[package]]
+name = "festo-python-logging"
+version = "0.0.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5c/77/64fc49c9b14032d30b2dd1b514ec9277da23a86bc00fd92ee9152004fa7f/festo_python_logging-0.0.10.tar.gz", hash = "sha256:670bdef1415024fa185b4ab05f3868dbcb80c5d47100c2525cec2b56f0fea097", size = 3098, upload-time = "2026-02-04T08:29:55.489Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c2/ce/ae517eb823207623bb8764a7d62945bc60d4dbd53283bbe78ebf98351545/festo_python_logging-0.0.10-py3-none-any.whl", hash = "sha256:54f78052c68ae8668e2ea8c80f3c599192865e1e95afc25d0311c4597508ee1c", size = 3309, upload-time = "2026-02-04T08:29:54.671Z" },
+]
+
+[[package]]
 name = "festo-vaem"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "pymodbus" },
@@ -345,6 +354,7 @@ serial = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "festo-python-logging" },
     { name = "pymodbus", extra = ["simulator"] },
     { name = "pyserial" },
     { name = "pytest" },
@@ -370,6 +380,7 @@ provides-extras = ["serial"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "festo-python-logging", specifier = ">=0.0.10" },
     { name = "pymodbus", extras = ["simulator"], specifier = "<=3.11.4" },
     { name = "pyserial", specifier = "<=3.5" },
     { name = "pytest", specifier = ">=9.0.1" },
