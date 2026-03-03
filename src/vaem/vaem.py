@@ -21,8 +21,11 @@ Typical usage example:
     vaem.open_valves(timings = valve_opening_times)
 """
 
+import logging
 from vaem.vaem_communication import VAEMModbusSerial, VAEMModbusTCP
 from vaem.vaem_config import VAEMConfig, VAEMSerialConfig, VAEMTCPConfig
+
+logger = logging.getLogger(__name__)
 
 
 class VAEM:
@@ -52,9 +55,12 @@ class VAEM:
             match self._config:
                 case VAEMTCPConfig():
                     self._backend = VAEMModbusTCP(config=self._config)
+                    logger.debug("VAEM TCP/IP backend initialized with config: %s", self._config)
                 case VAEMSerialConfig():
+                    logger.error("VAEM Serial backend is currently not implemented.")
                     self._backend = VAEMModbusSerial(config=self._config)
         else:
+            logger.error("Error, configuration passed in is not supported by the driver")
             raise TypeError("Error, configuration passed in is not supported by the driver")
 
     def select_valve(self, valve_id: int) -> None:

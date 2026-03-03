@@ -5,13 +5,12 @@ This module handles all communication underneath the hood
  and abstracting it all from the user.
 """
 
+import logging
 import struct
 from abc import ABC, abstractmethod
 
 from pymodbus.client import ModbusBaseClient, ModbusSerialClient, ModbusTcpClient
 from pymodbus.exceptions import ModbusException, ModbusIOException
-
-from vaem.utils.logging import Logging
 
 from .vaem_config import VAEMConfig, VAEMSerialConfig, VAEMTCPConfig
 from .vaem_helper import (
@@ -22,6 +21,8 @@ from .vaem_helper import (
     VaemOperatingMode,
     vaemValveIndex,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class VAEMModbusClient(ABC):
@@ -91,7 +92,7 @@ class VAEMModbusClient(ABC):
             case 0x01 | 0x02 | 0x04 | 0x05 | 0x06 | 0x11:
                 pass
             case _:
-                Logging.logger.error("Currently unsupported input param")
+                logger.error("Currently unsupported input param")
 
         return out
 
@@ -145,7 +146,7 @@ class VAEMModbusClient(ABC):
             for i in range(0, len(tmp) - 1, 2):
                 frame.append((tmp[i] << 8) + tmp[i + 1])
         except ValueError as e:
-            Logging.logger.error("Value error: %s. ", str(e))
+            logger.error("Value error: %s. ", str(e))
         return frame
 
     def _deconstruct_frame(self, frame) -> dict:
@@ -192,7 +193,7 @@ class VAEMModbusClient(ABC):
             )
             return data.registers
         except ModbusException as modbus_error:
-            Logging.logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
+            logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
         return None
 
     def _vaem_init(self):
@@ -219,9 +220,9 @@ class VAEMModbusClient(ABC):
                 self._init_done = True
                 self.error_handling_enabled = self.get_error_handling_status()
             except ConnectionError as e:
-                Logging.logger.error("Connection error: %s. ", str(e))
+                logger.error("Connection error: %s. ", str(e))
         else:
-            Logging.logger.warning("No VAEM Connected!! CANNOT INITIALIZE")
+            logger.warning("No VAEM Connected!! CANNOT INITIALIZE")
 
     def save_settings(self) -> None:
         """
@@ -249,7 +250,7 @@ class VAEMModbusClient(ABC):
             frame = self._construct_frame(data)
             self._transfer(frame)
         else:
-            Logging.logger.warning("No VAEM Connected!!")
+            logger.warning("No VAEM Connected!!")
 
     def select_valve(self, valve_id: int) -> None:
         """
@@ -293,10 +294,10 @@ class VAEMModbusClient(ABC):
                 self._transfer(frame)
                 self.active_valves[valve_id - 1] = 1
             else:
-                Logging.logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
+                logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
                 raise ValueError(f"Valve index out of bounds: {valve_id}")
         else:
-            Logging.logger.warning("No VAEM Connected!!")
+            logger.warning("No VAEM Connected!!")
 
     def deselect_valve(self, valve_id: int) -> None:
         """
@@ -340,10 +341,10 @@ class VAEMModbusClient(ABC):
                 self._transfer(frame)
                 self.active_valves[valve_id - 1] = 0
             else:
-                Logging.logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
+                logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
                 raise ValueError(f"Valve index out of bounds: {valve_id}")
         else:
-            Logging.logger.warning("No VAEM Connected!!")
+            logger.warning("No VAEM Connected!!")
 
     def set_valve_switching_time(self, valve_id: int, opening_time: int) -> None:
         """
@@ -379,10 +380,10 @@ class VAEMModbusClient(ABC):
                 frame = self._construct_frame(data)
                 self._transfer(frame)
             else:
-                Logging.logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
+                logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
                 raise ValueError
         else:
-            Logging.logger.warning("No VAEM Connected!!")
+            logger.warning("No VAEM Connected!!")
 
     def open_selected_valves(self) -> None:
         """
@@ -424,7 +425,7 @@ class VAEMModbusClient(ABC):
             self._transfer(frame)
             self.clear_error()
         else:
-            Logging.logger.warning("No VAEM Connected!!")
+            logger.warning("No VAEM Connected!!")
 
     def open_valves(self, timings: dict[int, int]) -> None:
         """
@@ -480,7 +481,7 @@ class VAEMModbusClient(ABC):
             self._transfer(frame)
             self.clear_error()
         else:
-            Logging.logger.warning("No VAEM Connected!!")
+            logger.warning("No VAEM Connected!!")
 
     def get_status(self) -> dict:
         """
@@ -513,9 +514,9 @@ class VAEMModbusClient(ABC):
             )
             frame = self._construct_frame(data)
             resp = self._transfer(frame)
-            Logging.logger.info(self._get_status(self._deconstruct_frame(resp)["transferValue"]))
+            logger.info(self._get_status(self._deconstruct_frame(resp)["transferValue"]))
             return self._get_status(self._deconstruct_frame(resp)["transferValue"])
-        Logging.logger.warning("No VAEM Connected!!")
+        logger.warning("No VAEM Connected!!")
         return {}
 
     def clear_error(self) -> None:
@@ -542,7 +543,7 @@ class VAEMModbusClient(ABC):
             frame = self._construct_frame(data)
             self._transfer(frame)
         else:
-            Logging.logger.warning("No VAEM Connected!!")
+            logger.warning("No VAEM Connected!!")
 
     def set_inrush_current(self, valve_id: int, inrush_current: int) -> None:
         """
@@ -1040,10 +1041,10 @@ class VAEMModbusClient(ABC):
             self.error_handling_enabled = activate
             match activate:
                 case 0:
-                    Logging.logger.warning("""WARNING: Disabling error handling will cause the device to omit certain errors and
+                    logger.warning("""WARNING: Disabling error handling will cause the device to omit certain errors and
                                            certain functionalitites of the driver will be disabled """)
                 case 1:
-                    Logging.logger.info("""Error handling is enabled""")
+                    logger.info("""Error handling is enabled""")
 
     def get_error_handling_status(self) -> int | None:
         """
@@ -1115,10 +1116,10 @@ class VAEMModbusTCP(VAEMModbusClient):
             }
             self.active_valves = [0, 0, 0, 0, 0, 0, 0, 0]
         except ConnectionError as e:
-            Logging.logger.error("Connection error: %s. ", str(e))
+            logger.error("Connection error: %s. ", str(e))
         except ModbusIOException as io_error:
-            Logging.logger.error("Modbus IO error: %s. ", str(io_error))
-            Logging.logger.info(self._config)
+            logger.error("Modbus IO error: %s. ", str(io_error))
+            logger.info(self._config)
 
 
 class VAEMModbusSerial(VAEMModbusClient):
@@ -1140,7 +1141,7 @@ class VAEMModbusSerial(VAEMModbusClient):
             RuntimeError: A runtime error with the serial interface has occurred.
         """
         super().__init__(config)
-        Logging.logger.error(
+        logger.error(
             """Modbus Serial backend is currently an experimental feature. \
             Attempting operation with this feature may result in unexpected or incorrect behavior. \
             This will be available as a fully supported feature in future releases."""
@@ -1158,4 +1159,4 @@ class VAEMModbusSerial(VAEMModbusClient):
             self._config = config
             self.client = ModbusSerialClient(port=self._config.com_port, baudrate=self._config.baudrate)
         except RuntimeError as run_err:
-            Logging.logger.error("Runtime error: %s. ", str(run_err))
+            logger.error("Runtime error: %s. ", str(run_err))
