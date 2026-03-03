@@ -14,7 +14,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 keywords = ["Festo", "Valve", "Valves", "Actuation", "Valve Controller", "Controller"]
-version = "0.1.1"
+version = "0.1.2"
 requires-python = ">=3.10"
 dependencies = [
     "pymodbus<=3.11.4",
@@ -41,6 +41,8 @@ dev = [
     "pyserial<=3.5",
     "pymodbus[simulator]<=3.11.4",
     "pytest>=9.0.1",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.14.0",
     "ruff"
 ]
 docs = [
