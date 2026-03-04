@@ -72,7 +72,6 @@ exclude = [
     ".vscode",
     ".venv",
     ".pytest_cache",
-    "tests",
 ]
 fix = true
 show-fixes = true
@@ -95,5 +94,4 @@ exclude = [
     ".vscode",
     ".venv",
     ".pytest_cache",
-    "tests",
 ]
