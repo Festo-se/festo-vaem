@@ -96,3 +96,8 @@ exclude = [
     ".venv",
     ".pytest_cache",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "hardware: marks tests as hardware integration tests (deselect with '-m \"not hardware\"')",
+]
