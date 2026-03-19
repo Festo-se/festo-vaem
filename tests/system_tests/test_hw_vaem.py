@@ -98,37 +98,35 @@ class TestVAEMHardwareValveSwitchingTime:
         valve_id = 1
         switching_time = 100
 
+        # Should not raise an exception
         vaem_device.set_valve_switching_time(valve_id, switching_time)
-        # No exception should be raised
 
     def test_set_switching_time_all_valves(self, vaem_device):
         """Test setting switching time for all valves."""
         for valve_id in range(1, 9):
             vaem_device.set_valve_switching_time(valve_id, 100)
-        # No exception should be raised
 
     def test_set_switching_time_min_value(self, vaem_device):
         """Test setting minimum switching time."""
         valve_id = 1
         vaem_device.set_valve_switching_time(valve_id, 10)
-        # No exception should be raised
 
     def test_set_switching_time_max_value(self, vaem_device):
         """Test setting maximum switching time."""
         valve_id = 1
         vaem_device.set_valve_switching_time(valve_id, 5000)
-        # No exception should be raised
 
     def test_get_switching_time(self, vaem_device):
         """Test getting switching time for a valve."""
         valve_id = 1
-        vaem_device.set_valve_switching_time(valve_id, 150)
+        test_time = 150
+        vaem_device.set_valve_switching_time(valve_id, test_time)
         time.sleep(0.1)  # Brief delay for device to process
 
         switching_time = vaem_device.get_valve_switching_time(valve_id)
-        assert switching_time is not None
-        # Value should be close to what we set (allow some tolerance)
-        assert isinstance(switching_time, int)
+        assert switching_time is not None, "Switching time should not be None"
+        assert isinstance(switching_time, int), "Switching time should be an integer"
+        assert switching_time == test_time, f"Switching time should be {test_time}, got {switching_time}"
 
 
 class TestVAEMHardwareOpenCloseValves:
@@ -228,36 +226,37 @@ class TestVAEMHardwareInrushCurrent:
         valve_id = 1
         inrush_current = 100
 
+        # Should not raise an exception
         vaem_device.set_inrush_current(valve_id, inrush_current)
-        # No exception should be raised
 
     def test_set_inrush_current_all_valves(self, vaem_device):
         """Test setting inrush current for all valves."""
         for valve_id in range(1, 9):
             vaem_device.set_inrush_current(valve_id, 150)
-        # No exception should be raised
 
     def test_get_inrush_current(self, vaem_device):
         """Test getting inrush current for a valve."""
         valve_id = 1
-        vaem_device.set_inrush_current(valve_id, 200)
+        test_current = 200
+        vaem_device.set_inrush_current(valve_id, test_current)
         time.sleep(0.1)
 
         inrush_current = vaem_device.get_inrush_current(valve_id)
-        assert inrush_current is not None
-        assert isinstance(inrush_current, int)
+        assert inrush_current is not None, "Inrush current should not be None"
+        assert isinstance(inrush_current, int), "Inrush current should be an integer"
+        assert inrush_current == test_current, f"Inrush current should be {test_current}, got {inrush_current}"
 
     def test_set_inrush_current_min_value(self, vaem_device):
         """Test setting minimum inrush current."""
         valve_id = 1
-        vaem_device.set_inrush_current(valve_id, 50)
-        # No exception should be raised
+        min_current = 50
+        vaem_device.set_inrush_current(valve_id, min_current)
 
     def test_set_inrush_current_max_value(self, vaem_device):
         """Test setting maximum inrush current."""
         valve_id = 1
-        vaem_device.set_inrush_current(valve_id, 800)
-        # No exception should be raised
+        max_current = 800
+        vaem_device.set_inrush_current(valve_id, max_current)
 
 
 class TestVAEMHardwareNominalVoltage:
@@ -268,14 +267,13 @@ class TestVAEMHardwareNominalVoltage:
         valve_id = 1
         voltage = 12000  # 12V in mV
 
+        # Should not raise an exception
         vaem_device.set_nominal_voltage(valve_id, voltage)
-        # No exception should be raised
 
     def test_set_nominal_voltage_all_valves(self, vaem_device):
         """Test setting nominal voltage for all valves."""
         for valve_id in range(1, 9):
             vaem_device.set_nominal_voltage(valve_id, 24000)
-        # No exception should be raised
 
     def test_get_nominal_voltage(self, vaem_device):
         """Test getting nominal voltage for a valve."""
@@ -286,20 +284,21 @@ class TestVAEMHardwareNominalVoltage:
         time.sleep(0.1)
 
         voltage = vaem_device.get_nominal_voltage(valve_id)
-        assert voltage is not None
-        assert isinstance(voltage, int)
+        assert voltage is not None, "Nominal voltage should not be None"
+        assert isinstance(voltage, int), "Nominal voltage should be an integer"
+        assert voltage == test_voltage, f"Nominal voltage should be {test_voltage}, got {voltage}"
 
     def test_set_nominal_voltage_min_value(self, vaem_device):
         """Test setting minimum nominal voltage."""
         valve_id = 1
-        vaem_device.set_nominal_voltage(valve_id, 8000)  # 8V in mV
-        # No exception should be raised
+        min_voltage = 8000  # 8V in mV
+        vaem_device.set_nominal_voltage(valve_id, min_voltage)
 
     def test_set_nominal_voltage_max_value(self, vaem_device):
         """Test setting maximum nominal voltage."""
         valve_id = 1
-        vaem_device.set_nominal_voltage(valve_id, 24000)  # 24V in mV
-        # No exception should be raised
+        max_voltage = 24000  # 24V in mV
+        vaem_device.set_nominal_voltage(valve_id, max_voltage)
 
 
 class TestVAEMHardwareDelayTime:
@@ -310,14 +309,13 @@ class TestVAEMHardwareDelayTime:
         valve_id = 1
         delay_time = 50
 
+        # Should not raise an exception
         vaem_device.set_delay_time(valve_id, delay_time)
-        # No exception should be raised
 
     def test_set_delay_time_all_valves(self, vaem_device):
         """Test setting delay time for all valves."""
         for valve_id in range(1, 9):
             vaem_device.set_delay_time(valve_id, 100)
-        # No exception should be raised
 
     def test_get_delay_time(self, vaem_device):
         """Test getting delay time for a valve."""
@@ -328,20 +326,21 @@ class TestVAEMHardwareDelayTime:
         time.sleep(0.1)
 
         delay_time = vaem_device.get_delay_time(valve_id)
-        assert delay_time is not None
-        assert isinstance(delay_time, int)
+        assert delay_time is not None, "Delay time should not be None"
+        assert isinstance(delay_time, int), "Delay time should be an integer"
+        assert delay_time == test_delay, f"Delay time should be {test_delay}, got {delay_time}"
 
     def test_set_delay_time_min_value(self, vaem_device):
         """Test setting minimum delay time."""
         valve_id = 1
-        vaem_device.set_delay_time(valve_id, 0)
-        # No exception should be raised
+        min_delay = 0
+        vaem_device.set_delay_time(valve_id, min_delay)
 
     def test_set_delay_time_max_value(self, vaem_device):
         """Test setting maximum delay time."""
         valve_id = 1
-        vaem_device.set_delay_time(valve_id, 1000)
-        # No exception should be raised
+        max_delay = 1000
+        vaem_device.set_delay_time(valve_id, max_delay)
 
 
 class TestVAEMHardwarePickupTime:
@@ -352,14 +351,13 @@ class TestVAEMHardwarePickupTime:
         valve_id = 1
         pickup_time = 50
 
+        # Should not raise an exception
         vaem_device.set_pickup_time(valve_id, pickup_time)
-        # No exception should be raised
 
     def test_set_pickup_time_all_valves(self, vaem_device):
         """Test setting pickup time for all valves."""
         for valve_id in range(1, 9):
             vaem_device.set_pickup_time(valve_id, 100)
-        # No exception should be raised
 
     def test_get_pickup_time(self, vaem_device):
         """Test getting pickup time for a valve."""
@@ -370,20 +368,21 @@ class TestVAEMHardwarePickupTime:
         time.sleep(0.1)
 
         pickup_time = vaem_device.get_pickup_time(valve_id)
-        assert pickup_time is not None
-        assert isinstance(pickup_time, int)
+        assert pickup_time is not None, "Pickup time should not be None"
+        assert isinstance(pickup_time, int), "Pickup time should be an integer"
+        assert pickup_time == test_pickup, f"Pickup time should be {test_pickup}, got {pickup_time}"
 
     def test_set_pickup_time_min_value(self, vaem_device):
         """Test setting minimum pickup time."""
         valve_id = 1
-        vaem_device.set_pickup_time(valve_id, 10)
-        # No exception should be raised
+        min_pickup = 10
+        vaem_device.set_pickup_time(valve_id, min_pickup)
 
     def test_set_pickup_time_max_value(self, vaem_device):
         """Test setting maximum pickup time."""
         valve_id = 1
-        vaem_device.set_pickup_time(valve_id, 500)
-        # No exception should be raised
+        max_pickup = 500
+        vaem_device.set_pickup_time(valve_id, max_pickup)
 
 
 class TestVAEMHardwareHoldingCurrent:
@@ -394,14 +393,13 @@ class TestVAEMHardwareHoldingCurrent:
         valve_id = 1
         holding_current = 100
 
+        # Should not raise an exception
         vaem_device.set_holding_current(valve_id, holding_current)
-        # No exception should be raised
 
     def test_set_holding_current_all_valves(self, vaem_device):
         """Test setting holding current for all valves."""
         for valve_id in range(1, 9):
             vaem_device.set_holding_current(valve_id, 150)
-        # No exception should be raised
 
     def test_get_holding_current(self, vaem_device):
         """Test getting holding current for a valve."""
@@ -412,20 +410,21 @@ class TestVAEMHardwareHoldingCurrent:
         time.sleep(0.1)
 
         holding_current = vaem_device.get_holding_current(valve_id)
-        assert holding_current is not None
-        assert isinstance(holding_current, int)
+        assert holding_current is not None, "Holding current should not be None"
+        assert isinstance(holding_current, int), "Holding current should be an integer"
+        assert holding_current == test_current, f"Holding current should be {test_current}, got {holding_current}"
 
     def test_set_holding_current_min_value(self, vaem_device):
         """Test setting minimum holding current."""
         valve_id = 1
-        vaem_device.set_holding_current(valve_id, 20)
-        # No exception should be raised
+        min_current = 20
+        vaem_device.set_holding_current(valve_id, min_current)
 
     def test_set_holding_current_max_value(self, vaem_device):
         """Test setting maximum holding current."""
         valve_id = 1
-        vaem_device.set_holding_current(valve_id, 400)
-        # No exception should be raised
+        max_current = 400
+        vaem_device.set_holding_current(valve_id, max_current)
 
 
 class TestVAEMHardwareCurrentReductionTime:
@@ -436,14 +435,13 @@ class TestVAEMHardwareCurrentReductionTime:
         valve_id = 1
         reduction_time = 50
 
+        # Should not raise an exception
         vaem_device.set_current_reduction_time(valve_id, reduction_time)
-        # No exception should be raised
 
     def test_set_current_reduction_time_all_valves(self, vaem_device):
         """Test setting current reduction time for all valves."""
         for valve_id in range(1, 9):
             vaem_device.set_current_reduction_time(valve_id, 75)
-        # No exception should be raised
 
     def test_get_current_reduction_time(self, vaem_device):
         """Test getting current reduction time for a valve."""
@@ -454,20 +452,21 @@ class TestVAEMHardwareCurrentReductionTime:
         time.sleep(0.1)
 
         reduction_time = vaem_device.get_current_reduction_time(valve_id)
-        assert reduction_time is not None
-        assert isinstance(reduction_time, int)
+        assert reduction_time is not None, "Reduction time should not be None"
+        assert isinstance(reduction_time, int), "Reduction time should be an integer"
+        assert reduction_time == test_reduction, f"Reduction time should be {test_reduction}, got {reduction_time}"
 
     def test_set_current_reduction_time_min_value(self, vaem_device):
         """Test setting minimum current reduction time."""
         valve_id = 1
-        vaem_device.set_current_reduction_time(valve_id, 10)
-        # No exception should be raised
+        min_reduction = 10
+        vaem_device.set_current_reduction_time(valve_id, min_reduction)
 
     def test_set_current_reduction_time_max_value(self, vaem_device):
         """Test setting maximum current reduction time."""
         valve_id = 1
-        vaem_device.set_current_reduction_time(valve_id, 1000)
-        # No exception should be raised
+        max_reduction = 1000
+        vaem_device.set_current_reduction_time(valve_id, max_reduction)
 
 
 class TestVAEMHardwareSettingsPersistence:
