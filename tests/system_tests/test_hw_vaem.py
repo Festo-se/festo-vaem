@@ -50,8 +50,9 @@ def vaem_device():
     
     # Close the Modbus connection
     try:
-        if hasattr(vaem._backend, '_client') and vaem._backend._client:
-            vaem._backend._client.close()
+        if hasattr(vaem._backend, 'client') and vaem._backend.client:
+            vaem._backend.client.close()
+            time.sleep(0.5)  # Give the device time to close the connection
     except Exception:
         pass  # Ignore errors during cleanup
 
