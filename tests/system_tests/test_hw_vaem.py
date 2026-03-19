@@ -39,7 +39,14 @@ def vaem_device():
 
     config = VAEMTCPConfig(interface="tcp/ip", ip=VAEM_IP, port=502)
     vaem = VAEM(config=config)
+    
     yield vaem
+    
+    # Cleanup: close valves after each test
+    try:
+        vaem.close_valves()
+    except Exception:
+        pass  # Ignore errors during cleanup
 
 
 class TestVAEMHardwareInitialization:
