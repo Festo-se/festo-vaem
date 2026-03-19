@@ -23,11 +23,12 @@ VAEM_IP = os.getenv("VAEM_IP")
 # Mark all tests in this module as hardware tests
 pytestmark = pytest.mark.hardware
 
-# Fixture to skip tests if VAEM_IP is not set
-pytest.skip(
-    "VAEM_IP environment variable not set. Set it to the IP address of your VAEM device.",
-    allow_module_level=True,
-)
+# Skip all tests if VAEM_IP is not set
+if not VAEM_IP:
+    pytest.skip(
+        "VAEM_IP environment variable not set. Set it to the IP address of your VAEM device.",
+        allow_module_level=True,
+    )
 
 
 @pytest.fixture
