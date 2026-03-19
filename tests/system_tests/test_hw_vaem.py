@@ -42,9 +42,16 @@ def vaem_device():
     
     yield vaem
     
-    # Cleanup: close valves after each test
+    # Cleanup: properly close the connection
     try:
         vaem.close_valves()
+    except Exception:
+        pass  # Ignore errors during cleanup
+    
+    # Close the Modbus connection
+    try:
+        if hasattr(vaem._backend, '_client') and vaem._backend._client:
+            vaem._backend._client.close()
     except Exception:
         pass  # Ignore errors during cleanup
 
