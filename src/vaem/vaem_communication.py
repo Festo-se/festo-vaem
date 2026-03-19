@@ -999,6 +999,7 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
+            reduction_time = int(reduction_time / 0.2)
             data = self._get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.CURRENTREDUCTIONTIME,
