@@ -2,7 +2,7 @@
 VAEM Serial Communication Module.
 
 This module provides a dedicated serial communication implementation
-for the VAEM valve control module using Modbus RTU protocol over RS-232/RS-485.
+for the VAEM valve control module using PySerial over RS-232/RS-485.
 
 Typical usage example:
     vaem_serial_config = VAEMSerialConfig(
@@ -16,11 +16,11 @@ Typical usage example:
 """
 
 import logging
+import struct
 import time
 from typing import Optional
 
-from pymodbus.client import ModbusSerialClient
-from pymodbus.exceptions import ModbusIOException
+import serial
 
 from .vaem_config import VAEMSerialConfig
 from .vaem_helper import (
@@ -39,11 +39,11 @@ class VAEMSerialCommunication:
     """
     VAEM Serial Communication Handler.
 
-    This class manages Modbus RTU communication with VAEM devices
-    over serial interfaces (RS-232, RS-485).
+    This class manages serial communication with VAEM devices
+    over serial interfaces (RS-232, RS-485) using PySerial.
 
     Attributes:
-        client (ModbusSerialClient): Pymodbus serial client instance
+        serial_port (serial.Serial): PySerial port instance
         _config (VAEMSerialConfig): Configuration for serial communication
         _init_done (bool): Flag indicating successful initialization
         error_handling_enabled (int): Error handling state (1=enabled, 0=disabled)
@@ -66,10 +66,7 @@ class VAEMSerialCommunication:
         """
         if not isinstance(config, VAEMSerialConfig):
             config_type = type(config)
-            raise TypeError(
-                f"Error: Config does not match the ModbusSerial backend. "
-                f"The type passed in was: {config_type}"
-            )
+            raise TypeError(f"Error: Config does not match the Serial backend. The type passed in was: {config_type}")
 
         self._config = config
         self.timeout = timeout
@@ -77,16 +74,7 @@ class VAEMSerialCommunication:
         self._init_done = False
         self.error_handling_enabled = 1
         self.active_valves = [0, 0, 0, 0, 0, 0, 0, 0]
-
-        # Read/Write parameters for Modbus communication
-        self._read_param = {
-            "address": 0,
-            "length": 0x07,
-        }
-        self._write_param = {
-            "address": 0,
-            "length": 0x07,
-        }
+        self.serial_port = None
 
         self._initialize_serial_connection()
 
@@ -94,11 +82,10 @@ class VAEMSerialCommunication:
         """
         Initialize serial connection to VAEM device.
 
-        Sets up Modbus RTU client with configured parameters and establishes connection.
+        Sets up PySerial port with configured parameters and establishes connection.
 
         Raises:
-            RuntimeError: Unable to create or connect to serial client
-            ModbusIOException: Modbus communication error
+            RuntimeError: Unable to create or connect to serial port
         """
         try:
             logger.info(
@@ -107,22 +94,18 @@ class VAEMSerialCommunication:
                 self._config.baudrate,
             )
 
-            # Create ModbusSerialClient with RTU mode
-            self.client = ModbusSerialClient(
+            # Create and open serial port
+            self.serial_port = serial.Serial(
                 port=self._config.com_port,
                 baudrate=self._config.baudrate,
-                method="rtu",  # Use RTU mode for serial communication
                 timeout=self.timeout,
-                stopbits=1,
-                bytesize=8,
-                parity="N",  # No parity
+                stopbits=serial.STOPBITS_ONE,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
             )
 
-            # Attempt connection
-            if not self.client.connect():
-                raise RuntimeError(
-                    f"Failed to connect to serial port {self._config.com_port}"
-                )
+            if not self.serial_port.is_open:
+                raise RuntimeError(f"Failed to open serial port {self._config.com_port}")
 
             logger.info("Serial connection established successfully")
 
@@ -133,10 +116,10 @@ class VAEMSerialCommunication:
             self._vaem_init()
             self._init_done = True
 
-        except (RuntimeError, ModbusIOException) as e:
+        except (RuntimeError, serial.SerialException) as e:
             logger.error("Serial connection initialization failed: %s", str(e))
             self._init_done = False
-            raise
+            raise RuntimeError(f"Failed to initialize serial connection: {e}") from e
 
     def _vaem_init(self) -> None:
         """
@@ -145,7 +128,7 @@ class VAEMSerialCommunication:
         Sets operating mode to OPMODE1 and clears any existing errors.
 
         Raises:
-            ModbusIOException: Communication error during initialization
+            RuntimeError: Communication error during initialization
         """
         try:
             logger.debug("Running VAEM initialization sequence")
@@ -167,15 +150,15 @@ class VAEMSerialCommunication:
             self.clear_error()
             logger.debug("VAEM initialization sequence completed")
 
-        except ModbusIOException as e:
+        except RuntimeError as e:
             logger.error("VAEM initialization failed: %s", str(e))
             raise
 
-    def _construct_frame(self, data: dict) -> list:
+    def _construct_frame(self, data: dict) -> bytes:
         """
-        Construct Modbus frame for transmission to VAEM device.
+        Construct serial frame for transmission to VAEM device.
 
-        Converts data dictionary into list of 16-bit Modbus registers.
+        Converts data dictionary into binary frame with proper formatting.
 
         Args:
             data (dict): Data dictionary containing:
@@ -187,17 +170,14 @@ class VAEMSerialCommunication:
                 - transferValue: Data value to transfer
 
         Returns:
-            list: Modbus register values ready for transmission
+            bytes: Binary frame ready for transmission
 
         Raises:
             ValueError: Invalid data format or values
         """
         try:
-            frame = []
-            import struct
-
             # Pack data into binary format
-            packed_data = struct.pack(
+            frame = struct.pack(
                 ">BBHBBQ",
                 data["access"],
                 data["dataType"],
@@ -207,26 +187,21 @@ class VAEMSerialCommunication:
                 data["transferValue"],
             )
 
-            # Convert to 16-bit Modbus registers
-            for i in range(0, len(packed_data) - 1, 2):
-                register_value = (packed_data[i] << 8) + packed_data[i + 1]
-                frame.append(register_value)
-
-            logger.debug("Frame constructed: %s", frame)
+            logger.debug("Frame constructed: %s", frame.hex())
             return frame
 
         except (ValueError, struct.error) as e:
             logger.error("Frame construction failed: %s", str(e))
             raise ValueError(f"Unable to construct frame: {e}") from e
 
-    def _deconstruct_frame(self, frame: list) -> dict:
+    def _deconstruct_frame(self, frame: bytes) -> dict:
         """
-        Deconstruct incoming Modbus frame from VAEM device.
+        Deconstruct incoming serial frame from VAEM device.
 
-        Converts 16-bit Modbus registers back into data dictionary.
+        Converts binary frame back into data dictionary.
 
         Args:
-            frame (list): List of 16-bit Modbus register values
+            frame (bytes): Binary frame received from device
 
         Returns:
             dict: Deconstructed data containing:
@@ -240,34 +215,36 @@ class VAEMSerialCommunication:
         Raises:
             ValueError: Invalid frame format
         """
-        data = {}
-
-        if frame is None or len(frame) < 4:
-            logger.error("Invalid frame received: %s", frame)
+        if frame is None or len(frame) < 12:
+            logger.error("Invalid frame received: %s", frame.hex() if frame else "None")
             raise ValueError("Invalid frame format")
 
         try:
-            data["access"] = (frame[0] & 0xFF00) >> 8
-            data["dataType"] = frame[0] & 0x00FF
-            data["paramIndex"] = frame[1]
-            data["paramSubIndex"] = (frame[2] & 0xFF00) >> 8
-            data["errorRet"] = frame[2] & 0x00FF
-            data["transferValue"] = 0
+            # Unpack binary data
+            access, datatype, param_index, param_sub_index, error_ret, transfer_value = struct.unpack(
+                ">BBHBBQ",
+                frame,
+            )
 
-            # Reconstruct multi-byte value from frame
-            for i in range(4):
-                data["transferValue"] += frame[len(frame) - 1 - i] << (i * 16)
+            data = {
+                "access": access,
+                "dataType": datatype,
+                "paramIndex": param_index,
+                "paramSubIndex": param_sub_index,
+                "errorRet": error_ret,
+                "transferValue": transfer_value,
+            }
 
             logger.debug("Frame deconstructed: %s", data)
             return data
 
-        except (IndexError, KeyError) as e:
+        except (struct.error, ValueError) as e:
             logger.error("Frame deconstruction failed: %s", str(e))
             raise ValueError(f"Unable to deconstruct frame: {e}") from e
 
     def _transfer_data(self, data: dict, retry: bool = True) -> Optional[dict]:
         """
-        Transfer data to VAEM device using read/write registers operation.
+        Transfer data to VAEM device via serial connection.
 
         Implements retry logic for improved reliability over serial connections.
 
@@ -279,39 +256,42 @@ class VAEMSerialCommunication:
             dict: Deconstructed response frame, or None if transfer failed
 
         Raises:
-            ModbusIOException: Communication error
-            RuntimeError: Device not initialized
+            RuntimeError: Device not initialized or communication error
         """
         if not self._init_done:
             logger.warning("VAEM device not initialized - cannot perform transfer")
             raise RuntimeError("VAEM device not initialized")
+
+        if self.serial_port is None or not self.serial_port.is_open:
+            logger.error("Serial port not open")
+            raise RuntimeError("Serial port is not open")
 
         frame = self._construct_frame(data)
         attempt = 0
 
         while attempt < self.retry_count:
             try:
-                # Ensure connection is active
-                if not self.client.connected:
-                    logger.debug("Reconnecting to serial device")
-                    self.client.connect()
+                # Clear any pending data in buffer
+                self.serial_port.reset_input_buffer()
 
-                # Perform read/write registers operation
-                response = self.client.readwrite_registers(
-                    read_address=self._read_param["address"],
-                    read_count=self._read_param["length"],
-                    write_address=self._write_param["address"],
-                    values=frame,
-                    device_id=self._config.unit_id,
-                )
+                # Send frame
+                logger.debug("Sending frame: %s", frame.hex())
+                self.serial_port.write(frame)
+                self.serial_port.flush()
 
-                if response is None:
-                    raise ModbusIOException("No response from device")
+                # Read response
+                response_frame = self.serial_port.read(12)
+
+                if len(response_frame) < 12:
+                    raise RuntimeError("Incomplete response from device")
+
+                logger.debug("Received frame: %s", response_frame.hex())
+                response_data = self._deconstruct_frame(response_frame)
 
                 logger.debug("Data transferred successfully on attempt %d", attempt + 1)
-                return self._deconstruct_frame(response.registers)
+                return response_data
 
-            except ModbusIOException as e:
+            except (RuntimeError, ValueError) as e:
                 attempt += 1
                 logger.warning(
                     "Transfer attempt %d/%d failed: %s",
@@ -322,7 +302,7 @@ class VAEMSerialCommunication:
 
                 if attempt >= self.retry_count:
                     logger.error("Failed to transfer data after %d attempts", self.retry_count)
-                    raise
+                    raise RuntimeError(f"Communication failed after {self.retry_count} attempts: {e}") from e
 
                 # Brief delay before retry
                 time.sleep(0.1)
@@ -726,9 +706,7 @@ class VAEMSerialCommunication:
             raise ValueError(f"Valve index out of bounds: {valve_id}")
 
         if inrush_current not in range(20, 1001):
-            raise ValueError(
-                f"Inrush current {inrush_current} out of range (20-1000 mA)"
-            )
+            raise ValueError(f"Inrush current {inrush_current} out of range (20-1000 mA)")
 
         try:
             data = self._get_transfer_value(
@@ -800,9 +778,7 @@ class VAEMSerialCommunication:
             raise ValueError(f"Valve index out of bounds: {valve_id}")
 
         if holding_current not in range(20, 401):
-            raise ValueError(
-                f"Holding current {holding_current} out of range (20-400 mA)"
-            )
+            raise ValueError(f"Holding current {holding_current} out of range (20-400 mA)")
 
         try:
             data = self._get_transfer_value(
@@ -873,9 +849,7 @@ class VAEMSerialCommunication:
             raise ValueError(f"Valve index out of bounds: {valve_id}")
 
         if voltage not in range(8000, 24001):
-            raise ValueError(
-                f"Voltage {voltage} out of range (8000-24000 mV)"
-            )
+            raise ValueError(f"Voltage {voltage} out of range (8000-24000 mV)")
 
         try:
             data = self._get_transfer_value(
@@ -1225,8 +1199,8 @@ class VAEMSerialCommunication:
         Safely disconnects from the device and cleans up resources.
         """
         try:
-            if hasattr(self, "client") and self.client.connected:
-                self.client.close()
+            if self.serial_port is not None and self.serial_port.is_open:
+                self.serial_port.close()
                 self._init_done = False
                 logger.info("Serial connection closed")
         except Exception as e:
