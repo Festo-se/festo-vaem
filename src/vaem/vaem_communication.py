@@ -405,8 +405,18 @@ class VAEMModbusClient(ABC):
                     VaemAccess.WRITE.value,
                     VaemIndex.CONTROLWORD,
                     0,
-                    VaemControlWords.STARTVALVES.value,
+                    VaemControlWords.STOPVALVES.value,
                 )
+                frame = self._construct_frame(data)
+                self._transfer(frame)
+                data = self._get_transfer_value(
+                    VaemAccess.WRITE.value,
+                    VaemIndex.CONTROLWORD,
+                    0,
+                    VaemControlWords.STARTVALVESRESETERROR.value,
+                )
+                frame = self._construct_frame(data)
+                self._transfer(frame)
             else:
                 data = self._get_transfer_value(
                     VaemAccess.WRITE.value,
@@ -414,15 +424,10 @@ class VAEMModbusClient(ABC):
                     0,
                     VaemControlWords.STARTVALVESRESETERROR.value,
                 )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+                frame = self._construct_frame(data)
+                self._transfer(frame)
 
             # reset the control word
-            data = self._get_transfer_value(
-                VaemAccess.WRITE.value, VaemIndex.CONTROLWORD, 0, VaemControlWords.RESETERRORS.value
-            )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
             self.clear_error()
         else:
             logger.warning("No VAEM Connected!!")
