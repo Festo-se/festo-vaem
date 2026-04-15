@@ -5,7 +5,7 @@ Fixtures:
 vaem_tcp_mock
     A ```VAEM``` instance where the backend is replaced by
     ```MagicMock```. This allows all unit test to run without
-    the need for hardware of a network connection.
+    the need for hardware or a network connection.
 
 vaem_hw
     A real ```VAEM``` instance connected to the device. These
