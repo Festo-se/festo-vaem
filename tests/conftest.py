@@ -28,7 +28,7 @@ from vaem import VAEM, VAEMTCPConfig
 @pytest.fixture()
 def vaem_tcp_mock(mocker):
     """
-    Returns a VAEM instance with it's backend communication replaced with MagicMock OBJ.
+    Returns a VAEM instance with its backend communication replaced with MagicMock object.
 
     The mock backend communication is defined with a standard set of return values for
     all 'get' methods so the test methods can assert without the requirement of a physical
