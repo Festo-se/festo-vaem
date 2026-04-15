@@ -1,7 +1,7 @@
 """
 Hardware integration tests for the VAEM driver.
 
-These tests require a live PGVA-1 device connected over TCP/IP.
+These tests require a live VAEM device connected over TCP/IP.
 They are skipped automatically when the ``VAEM_IP`` environment variable
 is not set.
 
