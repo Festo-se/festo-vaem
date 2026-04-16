@@ -1,0 +1,51 @@
+name: "PR Title"
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      # Re-run whenever the title or base branch changes, or the PR is reopened.
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+permissions:
+  pull-requests: write
+
+jobs:
+  pr-title:
+    name: "Lint PR title"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Allowed conventional commit types in the PR title.
+          types: |
+            feat
+            fix
+            chore
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+          # Allow an optional scope in parentheses or square brackets, e.g.
+          #   feat(api): ...
+          #   fix[registers]: ...
+          # The default scope pattern only allows word chars; override to include brackets.
+          subjectPattern: ^[A-Z].+[^.]$
+          subjectPatternError: |
+            The subject (the part after the colon) must:
+              - start with a capital letter
+              - not end with a period
+          # Require a "Changelog: <section>" trailer in the PR body so git-cliff
+          # can categorise the squash commit when it lands on main.
+          requireScope: false
+          validateSingleCommit: false
+          wip: true
