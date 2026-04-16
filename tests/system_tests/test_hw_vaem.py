@@ -384,11 +384,20 @@ class TestVAEMHardwareDelayTime:
 
         # Should not raise an exception
         vaem_device.set_delay_time(valve_id, delay_time)
+        time.sleep(0.1)  # Brief delay for device to process
+
+        retrieved_delay = vaem_device.get_delay_time(valve_id)
+        assert retrieved_delay == delay_time, f"Expected {delay_time}, got {retrieved_delay}"
 
     def test_set_delay_time_all_valves(self, vaem_device):
         """Test setting delay time for all valves."""
         for valve_id in range(1, 9):
-            vaem_device.set_delay_time(valve_id, 100)
+            delay_time = 100 + (valve_id * 5)  # Vary delay per valve for verification
+            vaem_device.set_delay_time(valve_id, delay_time)
+            time.sleep(0.05)  # Brief delay for device to process
+
+            retrieved_delay = vaem_device.get_delay_time(valve_id)
+            assert retrieved_delay == delay_time, f"Valve {valve_id}: Expected {delay_time}, got {retrieved_delay}"
 
     def test_get_delay_time(self, vaem_device):
         """Test getting delay time for a valve."""
@@ -408,12 +417,20 @@ class TestVAEMHardwareDelayTime:
         valve_id = 1
         min_delay = 0
         vaem_device.set_delay_time(valve_id, min_delay)
+        time.sleep(0.1)  # Brief delay for device to process
+
+        retrieved_delay = vaem_device.get_delay_time(valve_id)
+        assert retrieved_delay == min_delay, f"Expected minimum {min_delay}, got {retrieved_delay}"
 
     def test_set_delay_time_max_value(self, vaem_device):
         """Test setting maximum delay time."""
         valve_id = 1
         max_delay = 1000
         vaem_device.set_delay_time(valve_id, max_delay)
+        time.sleep(0.1)  # Brief delay for device to process
+
+        retrieved_delay = vaem_device.get_delay_time(valve_id)
+        assert retrieved_delay == max_delay, f"Expected maximum {max_delay}, got {retrieved_delay}"
 
 
 class TestVAEMHardwarePickupTime:
