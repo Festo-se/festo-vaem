@@ -7,7 +7,7 @@ is not set.
 
 Run with::
 
-    VAEM_IP=192.168.0.1 pytest -m hardware -v tests/system_tests/test_hw_vaem.py
+    VAEM_IP=192.168.0.1 uv run pytest -m hardware -v tests/system_tests/test_hw_vaem.py
 """
 
 import os
