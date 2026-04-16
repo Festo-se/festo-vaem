@@ -7,7 +7,7 @@ is not set.
 
 Run with::
 
-    VAEM_IP=192.168.0.1 pytest -m hardware -v tests/system_tests/test_hw_vaem.py
+    VAEM_IP=192.168.0.1 uv run pytest -m hardware -v tests/system_tests/test_hw_vaem.py
 """
 
 import os
@@ -42,7 +42,7 @@ def vaem_device():
     
     yield vaem
     
-    # Cleanup: properly close the connection
+    # Cleanup: Close any valves that may have remained open and selected
     try:
         vaem.close_valves()
     except Exception:
