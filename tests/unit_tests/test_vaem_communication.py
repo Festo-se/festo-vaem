@@ -461,7 +461,7 @@ class TestVAEMModbusClientComplexOperations:
         backend = vaem_tcp_mock._backend
         
         for valve_id in range(1, 9):
-            backend.set_nominal_voltage(valve_id=valve_id, voltage=12000)
+            backend.set_nominal_voltage(valve_id=valve_id, voltage=11000)
             backend.set_inrush_current(valve_id=valve_id, inrush_current=150)
             backend.set_holding_current(valve_id=valve_id, holding_current=100)
 
