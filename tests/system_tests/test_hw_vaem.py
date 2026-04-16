@@ -325,11 +325,20 @@ class TestVAEMHardwareNominalVoltage:
 
         # Should not raise an exception
         vaem_device.set_nominal_voltage(valve_id, voltage)
+        time.sleep(0.1)  # Brief delay for device to process
+
+        retrieved_voltage = vaem_device.get_nominal_voltage(valve_id)
+        assert retrieved_voltage == voltage, f"Expected {voltage}, got {retrieved_voltage}"
 
     def test_set_nominal_voltage_all_valves(self, vaem_device):
         """Test setting nominal voltage for all valves."""
         for valve_id in range(1, 9):
-            vaem_device.set_nominal_voltage(valve_id, 24000)
+            voltage = 24000 - (valve_id * 1000)  # Vary voltage per valve for verification
+            vaem_device.set_nominal_voltage(valve_id, voltage)
+            time.sleep(0.05)  # Brief delay for device to process
+
+            retrieved_voltage = vaem_device.get_nominal_voltage(valve_id)
+            assert retrieved_voltage == voltage, f"Valve {valve_id}: Expected {voltage}, got {retrieved_voltage}"
 
     def test_get_nominal_voltage(self, vaem_device):
         """Test getting nominal voltage for a valve."""
@@ -349,12 +358,20 @@ class TestVAEMHardwareNominalVoltage:
         valve_id = 1
         min_voltage = 8000  # 8V in mV
         vaem_device.set_nominal_voltage(valve_id, min_voltage)
+        time.sleep(0.1)  # Brief delay for device to process
+
+        retrieved_voltage = vaem_device.get_nominal_voltage(valve_id)
+        assert retrieved_voltage == min_voltage, f"Expected minimum {min_voltage}, got {retrieved_voltage}"
 
     def test_set_nominal_voltage_max_value(self, vaem_device):
         """Test setting maximum nominal voltage."""
         valve_id = 1
         max_voltage = 24000  # 24V in mV
         vaem_device.set_nominal_voltage(valve_id, max_voltage)
+        time.sleep(0.1)  # Brief delay for device to process
+
+        retrieved_voltage = vaem_device.get_nominal_voltage(valve_id)
+        assert retrieved_voltage == max_voltage, f"Expected maximum {max_voltage}, got {retrieved_voltage}"
 
 
 class TestVAEMHardwareDelayTime:
