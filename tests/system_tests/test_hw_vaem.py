@@ -39,18 +39,18 @@ def vaem_device():
 
     config = VAEMTCPConfig(interface="tcp/ip", ip=VAEM_IP, port=502)
     vaem = VAEM(config=config)
-    
+
     yield vaem
-    
+
     # Cleanup: Close any valves that may have remained open and selected
     try:
         vaem.close_valves()
     except Exception:
         pass  # Ignore errors during cleanup
-    
+
     # Close the Modbus connection
     try:
-        if hasattr(vaem._backend, 'client') and vaem._backend.client:
+        if hasattr(vaem._backend, "client") and vaem._backend.client:
             vaem._backend.client.close()
             time.sleep(0.5)  # Give the device time to close the connection
     except Exception:
@@ -117,7 +117,7 @@ class TestVAEMHardwareValveSwitchingTime:
         # Should not raise an exception
         vaem_device.set_valve_switching_time(valve_id, switching_time)
         time.sleep(0.1)  # Brief delay for device to process
-        
+
         retrieved_time = vaem_device.get_valve_switching_time(valve_id)
         assert retrieved_time == switching_time, f"Expected {switching_time}, got {retrieved_time}"
 
@@ -127,9 +127,11 @@ class TestVAEMHardwareValveSwitchingTime:
             switching_time = 100 + (valve_id * 10)  # Vary time per valve for verification
             vaem_device.set_valve_switching_time(valve_id, switching_time)
             time.sleep(0.05)  # Brief delay for device to process
-            
+
             retrieved_time = vaem_device.get_valve_switching_time(valve_id)
-            assert retrieved_time == switching_time, f"Valve {valve_id}: Expected {switching_time}, got {retrieved_time}"
+            assert retrieved_time == switching_time, (
+                f"Valve {valve_id}: Expected {switching_time}, got {retrieved_time}"
+            )
 
     def test_set_switching_time_min_value(self, vaem_device):
         """Test setting minimum switching time."""
@@ -137,7 +139,7 @@ class TestVAEMHardwareValveSwitchingTime:
         min_time = 10
         vaem_device.set_valve_switching_time(valve_id, min_time)
         time.sleep(0.1)  # Brief delay for device to process
-        
+
         retrieved_time = vaem_device.get_valve_switching_time(valve_id)
         assert retrieved_time == min_time, f"Expected minimum {min_time}, got {retrieved_time}"
 
@@ -147,7 +149,7 @@ class TestVAEMHardwareValveSwitchingTime:
         max_time = 5000
         vaem_device.set_valve_switching_time(valve_id, max_time)
         time.sleep(0.1)  # Brief delay for device to process
-        
+
         retrieved_time = vaem_device.get_valve_switching_time(valve_id)
         assert retrieved_time == max_time, f"Expected maximum {max_time}, got {retrieved_time}"
 
@@ -263,11 +265,22 @@ class TestVAEMHardwareInrushCurrent:
 
         # Should not raise an exception
         vaem_device.set_inrush_current(valve_id, inrush_current)
+        time.sleep(0.1)  # Brief delay for device to process
+
+        retrieved_current = vaem_device.get_inrush_current(valve_id)
+        assert retrieved_current == inrush_current, f"Expected {inrush_current}, got {retrieved_current}"
 
     def test_set_inrush_current_all_valves(self, vaem_device):
         """Test setting inrush current for all valves."""
         for valve_id in range(1, 9):
-            vaem_device.set_inrush_current(valve_id, 150)
+            inrush_current = 150 + (valve_id * 5)  # Vary current per valve for verification
+            vaem_device.set_inrush_current(valve_id, inrush_current)
+            time.sleep(0.05)  # Brief delay for device to process
+
+            retrieved_current = vaem_device.get_inrush_current(valve_id)
+            assert retrieved_current == inrush_current, (
+                f"Valve {valve_id}: Expected {inrush_current}, got {retrieved_current}"
+            )
 
     def test_get_inrush_current(self, vaem_device):
         """Test getting inrush current for a valve."""
@@ -286,12 +299,20 @@ class TestVAEMHardwareInrushCurrent:
         valve_id = 1
         min_current = 50
         vaem_device.set_inrush_current(valve_id, min_current)
+        time.sleep(0.1)  # Brief delay for device to process
+
+        retrieved_current = vaem_device.get_inrush_current(valve_id)
+        assert retrieved_current == min_current, f"Expected minimum {min_current}, got {retrieved_current}"
 
     def test_set_inrush_current_max_value(self, vaem_device):
         """Test setting maximum inrush current."""
         valve_id = 1
         max_current = 800
         vaem_device.set_inrush_current(valve_id, max_current)
+        time.sleep(0.1)  # Brief delay for device to process
+
+        retrieved_current = vaem_device.get_inrush_current(valve_id)
+        assert retrieved_current == max_current, f"Expected maximum {max_current}, got {retrieved_current}"
 
 
 class TestVAEMHardwareNominalVoltage:
