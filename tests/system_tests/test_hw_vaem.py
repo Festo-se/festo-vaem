@@ -116,21 +116,40 @@ class TestVAEMHardwareValveSwitchingTime:
 
         # Should not raise an exception
         vaem_device.set_valve_switching_time(valve_id, switching_time)
+        time.sleep(0.1)  # Brief delay for device to process
+        
+        retrieved_time = vaem_device.get_valve_switching_time(valve_id)
+        assert retrieved_time == switching_time, f"Expected {switching_time}, got {retrieved_time}"
 
     def test_set_switching_time_all_valves(self, vaem_device):
         """Test setting switching time for all valves."""
         for valve_id in range(1, 9):
-            vaem_device.set_valve_switching_time(valve_id, 100)
+            switching_time = 100 + (valve_id * 10)  # Vary time per valve for verification
+            vaem_device.set_valve_switching_time(valve_id, switching_time)
+            time.sleep(0.05)  # Brief delay for device to process
+            
+            retrieved_time = vaem_device.get_valve_switching_time(valve_id)
+            assert retrieved_time == switching_time, f"Valve {valve_id}: Expected {switching_time}, got {retrieved_time}"
 
     def test_set_switching_time_min_value(self, vaem_device):
         """Test setting minimum switching time."""
         valve_id = 1
-        vaem_device.set_valve_switching_time(valve_id, 10)
+        min_time = 10
+        vaem_device.set_valve_switching_time(valve_id, min_time)
+        time.sleep(0.1)  # Brief delay for device to process
+        
+        retrieved_time = vaem_device.get_valve_switching_time(valve_id)
+        assert retrieved_time == min_time, f"Expected minimum {min_time}, got {retrieved_time}"
 
     def test_set_switching_time_max_value(self, vaem_device):
         """Test setting maximum switching time."""
         valve_id = 1
-        vaem_device.set_valve_switching_time(valve_id, 5000)
+        max_time = 5000
+        vaem_device.set_valve_switching_time(valve_id, max_time)
+        time.sleep(0.1)  # Brief delay for device to process
+        
+        retrieved_time = vaem_device.get_valve_switching_time(valve_id)
+        assert retrieved_time == max_time, f"Expected maximum {max_time}, got {retrieved_time}"
 
     def test_get_switching_time(self, vaem_device):
         """Test getting switching time for a valve."""
