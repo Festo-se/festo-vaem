@@ -463,7 +463,7 @@ class TestVAEMModbusClientComplexOperations:
         for valve_id in range(1, 9):
             backend.set_nominal_voltage(valve_id=valve_id, voltage=11000)
             backend.set_inrush_current(valve_id=valve_id, inrush_current=110)
-            backend.set_holding_current(valve_id=valve_id, holding_current=100)
+            backend.set_holding_current(valve_id=valve_id, holding_current=90)
 
     def test_error_handling_workflow(self, vaem_tcp_mock):
         """Test error handling workflow."""
