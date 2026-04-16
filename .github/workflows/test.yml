@@ -33,10 +33,10 @@ jobs:
         run: uv sync --group dev
 
       - name: Check formatting
-        run: uv run ruff format --check
+        run: uv run ruff format --check . --config pyproject.toml
 
       - name: Lint
-        run: uv run ruff check .
+        run: uv run ruff check . --config pyproject.toml
 
   typecheck:
     name: "Type check (ty)"
@@ -59,12 +59,12 @@ jobs:
   test:
     name: "Test (Python ${{ matrix.python-version }})"
     runs-on: ubuntu-latest
-    needs: [lint, typecheck]
+    needs: [ lint, typecheck ]
 
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
 
     steps:
       - uses: actions/checkout@v6
@@ -83,10 +83,7 @@ jobs:
       # under [tool.pytest.ini_options].
       - name: Run tests with coverage
         run: >
-          uv run pytest
-          -m "not hardware"
-          --cov=vaem
-          --cov-report=term-missing
+          uv run pytest -m "not hardware" --cov=vaem --cov-report=term-missing
           --cov-report=xml:coverage.xml
 
       # Upload the XML report as a build artifact so it can be downloaded
@@ -139,7 +136,8 @@ jobs:
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
-          args: --tag ${{ steps.version.outputs.version }} --latest --strip header --prepend CHANGELOG.md
+          args: --tag ${{ steps.version.outputs.version }} --latest --strip header
+            --prepend CHANGELOG.md
 
       - name: Commit updated CHANGELOG.md to main
         if: steps.tag_check.outputs.exists == 'false'

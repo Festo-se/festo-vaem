@@ -73,6 +73,7 @@ exclude = [
     ".vscode",
     ".venv",
     ".pytest_cache",
+    "tests",
 ]
 fix = true
 show-fixes = true
@@ -80,7 +81,6 @@ show-fixes = true
 [tool.ruff.lint]
 select = ["D", "E4", "E7", "E9", "F", "C901", "B", "S"]
 ignore = ["D203", "D212"]
-exclude = ["tests/*",]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
