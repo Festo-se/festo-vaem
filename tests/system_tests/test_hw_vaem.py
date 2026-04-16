@@ -42,7 +42,7 @@ def vaem_device():
     
     yield vaem
     
-    # Cleanup: properly close the connection
+    # Cleanup: Close any valves that may have remained open and selected
     try:
         vaem.close_valves()
     except Exception:
