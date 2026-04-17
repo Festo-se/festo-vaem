@@ -131,27 +131,27 @@ jobs:
       # Generate and commit the changelog onto main BEFORE the tag is pushed
       # so the tag points at a commit that already contains the updated CHANGELOG.md.
       # release-publish.yml then just reads the changelog for the release body.
-      - name: Generate changelog and prepend to CHANGELOG.md
-        if: steps.tag_check.outputs.exists == 'false'
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --tag ${{ steps.version.outputs.version }} --latest --strip header
-            --prepend CHANGELOG.md
-        env:
-          OUTPUT: CHANGELOG.md
-          GITHUB_REPO: ${{ github.repository }}
+      # - name: Generate changelog and prepend to CHANGELOG.md
+      #   if: steps.tag_check.outputs.exists == 'false'
+      #   uses: orhun/git-cliff-action@v4
+      #   with:
+      #     config: cliff.toml
+      #     args: --tag ${{ steps.version.outputs.version }} --latest --strip header
+      #       --prepend CHANGELOG.md
+      #   env:
+      #     OUTPUT: CHANGELOG.md
+      #     GITHUB_REPO: ${{ github.repository }}
 
-      - name: Commit updated CHANGELOG.md to main
-        if: steps.tag_check.outputs.exists == 'false'
-        run: |
-          git checkout main
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          set +e
-          git add CHANGELOG.md
-          git commit -m "docs: update changelog for ${{ steps.version.outputs.version }}"
-          git push origin main
+      # - name: Commit updated CHANGELOG.md to main
+      #   if: steps.tag_check.outputs.exists == 'false'
+      #   run: |
+      #     git checkout main
+      #     git config user.name "github-actions[bot]"
+      #     git config user.email "github-actions[bot]@users.noreply.github.com"
+      #     set +e
+      #     git add CHANGELOG.md
+      #     git commit -m "docs: update changelog for ${{ steps.version.outputs.version }}"
+      #     git push origin main
 
       - name: Create and push tag
         if: steps.tag_check.outputs.exists == 'false'
