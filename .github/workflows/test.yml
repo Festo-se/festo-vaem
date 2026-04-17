@@ -14,7 +14,8 @@ on:
       - main
 
 permissions:
-  contents: read
+  actions: write
+  contents: write
 
 jobs:
   lint:
@@ -163,6 +164,7 @@ jobs:
       # dispatch release-publish.yml explicitly via the workflow_dispatch event.
       - name: Trigger release-publish workflow
         if: steps.tag_check.outputs.exists == 'false'
+
         run: |
           gh workflow run release-publish.yml \
             --ref ${{ steps.version.outputs.version }} \
