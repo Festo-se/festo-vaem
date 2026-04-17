@@ -62,6 +62,14 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true } }]
 [tool.uv.build-backend]
 module-name = "vaem"
 
+[tool.ty.src]
+include=[
+    "src"
+]
+exclude = [
+    "tests"
+]
+
 [tool.ruff]
 line-length = 120
 indent-width = 4
