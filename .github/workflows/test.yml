@@ -138,12 +138,17 @@ jobs:
           config: cliff.toml
           args: --tag ${{ steps.version.outputs.version }} --latest --strip header
             --prepend CHANGELOG.md
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
 
       - name: Commit updated CHANGELOG.md to main
         if: steps.tag_check.outputs.exists == 'false'
         run: |
+          git checkout main
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          set +e
           git add CHANGELOG.md
           git commit -m "docs: update changelog for ${{ steps.version.outputs.version }}"
           git push origin main
