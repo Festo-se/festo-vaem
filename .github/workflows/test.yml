@@ -48,7 +48,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Install Python
-        run: uv python install 3.11
+        run: uv python install 3.14
 
       - name: Install dev dependencies
         run: uv sync --group dev
@@ -164,7 +164,6 @@ jobs:
       # dispatch release-publish.yml explicitly via the workflow_dispatch event.
       - name: Trigger release-publish workflow
         if: steps.tag_check.outputs.exists == 'false'
-
         run: |
           gh workflow run release-publish.yml \
             --ref ${{ steps.version.outputs.version }} \
