@@ -14,7 +14,8 @@ on:
       - main
 
 permissions:
-  contents: read
+  actions: write
+  contents: write
 
 jobs:
   lint:
