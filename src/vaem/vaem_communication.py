@@ -397,15 +397,7 @@ class VAEMModbusClient(ABC):
                     VaemAccess.WRITE.value,
                     VaemIndex.CONTROLWORD,
                     0,
-                    VaemControlWords.STOPVALVES.value,
-                )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
-                data = self._get_transfer_value(
-                    VaemAccess.WRITE.value,
-                    VaemIndex.CONTROLWORD,
-                    0,
-                    VaemControlWords.STARTVALVESRESETERROR.value,
+                    VaemControlWords.STARTVALVES.value,
                 )
                 frame = self._construct_frame(data)
                 self._transfer(frame)
@@ -479,6 +471,34 @@ class VAEMModbusClient(ABC):
         else:
             logger.warning("No VAEM Connected!!")
 
+    def get_control_word(self) -> int | None:
+        """
+        Gets the current control word of the VAEM.
+
+        Typical usage example:
+            control_word = vaem.get_control_word()
+
+            print(control_word)
+
+        Args:
+            None
+
+        Returns:
+            Control word of the VAEM. For more information, please refer to the VAEM Operation Instruction manual.
+        """
+        if self._init_done:
+            data = self._get_transfer_value(
+                VaemAccess.READ.value,
+                VaemIndex.CONTROLWORD,
+                0,
+                0,
+            )
+            frame = self._construct_frame(data)
+            resp = self._transfer(frame)
+            return int(self._deconstruct_frame(resp)["transferValue"])
+        logger.warning("No VAEM Connected!!")
+        return None
+
     def get_status(self) -> dict:
         """
         Read the status of the VAEM.
@@ -514,6 +534,29 @@ class VAEMModbusClient(ABC):
         logger.warning("No VAEM Connected!!")
         return {}
 
+    def clear_control_word(self) -> None:
+        """
+        Clears the control word of the VAEM.
+
+        This is used to reset the control word after an open or close command.
+
+        Typical usage example:
+            vaem.clear_control_word()
+        """
+        if self._init_done:
+            data = self._get_transfer_value(
+                VaemAccess.WRITE.value,
+                VaemIndex.CONTROLWORD,
+                0,
+                VaemControlWords.RESETSTATE.value,
+            )
+            frame = self._construct_frame(data)
+            resp = self._transfer(frame)
+            if self._deconstruct_frame(resp)["errorRet"] == 0:
+                logger.info("Control word cleared successfully")
+        else:
+            logger.warning("No VAEM Connected!!")
+
     def clear_error(self) -> None:
         """
         If any error occurs in valve opening, must be cleared with this opperation.
@@ -535,7 +578,14 @@ class VAEMModbusClient(ABC):
                 VaemControlWords.RESETERRORS.value,
             )
             frame = self._construct_frame(data)
-            self._transfer(frame)
+            response = self._transfer(frame)
+            if self._deconstruct_frame(response)["errorRet"] == 0:
+                logger.info("Error cleared successfully")
+                self.clear_control_word()
+            else:
+                logger.error(
+                    "Error could not be cleared, error code: %s", self._deconstruct_frame(response)["errorRet"]
+                )
         else:
             logger.warning("No VAEM Connected!!")
 
