@@ -89,12 +89,14 @@ class VaemControlWords(IntEnum):
     Enum class for the VAEM control words.
 
     Attributes:
+        RESETSTATE (0x00): Reset the state back to 0
         STARTVALVES (0x01): Start Valves
         STOPVALVES (0x04): Stop Valves
         RESETERRORS (0x08): Reset Errors
         STARTVALVESRESETERROR (0x09): Start valves and reset error bit after completion
     """
 
+    RESETSTATE = 0x00
     STARTVALVES = 0x01
     STOPVALVES = 0x04
     RESETERRORS = 0x08
