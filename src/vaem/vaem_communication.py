@@ -7,6 +7,7 @@ This module handles all communication underneath the hood
 
 import logging
 import struct
+import time
 from abc import ABC, abstractmethod
 
 from pymodbus.client import ModbusBaseSyncClient, ModbusSerialClient, ModbusTcpClient
@@ -191,6 +192,7 @@ class VAEMModbusClient(ABC):
                 values=write_data,
                 device_id=self._config.unit_id,
             )
+            time.sleep(0.001)
             return data.registers
         except ModbusException as modbus_error:
             logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
@@ -412,7 +414,7 @@ class VAEMModbusClient(ABC):
                 self._transfer(frame)
 
             # reset the control word
-            self.clear_error()
+            self.clear_control_word()
         else:
             logger.warning("No VAEM Connected!!")
 
