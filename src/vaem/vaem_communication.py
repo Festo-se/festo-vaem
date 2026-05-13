@@ -2,7 +2,7 @@
 Festo VAEM backend communication module.
 
 This module handles all communication underneath the hood
- and abstracting it all from the user.
+and abstracting it all from the user.
 """
 
 import logging
@@ -1140,7 +1140,7 @@ class VAEMModbusTCP(VAEMModbusClient):
             logger.info(self._config)
 
 
-class VAEMModbusSerial(VAEMModbusClient):
+class VAEMSerial:
     """Class used as the interface backend for using Serial communication."""
 
     def __init__(self, config: VAEMSerialConfig):
