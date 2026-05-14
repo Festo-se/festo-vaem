@@ -403,8 +403,7 @@ class VAEMModbusClient(ABC):
                     (valve_id - 1),
                     int(opening_time),
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
             else:
                 logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
                 raise ValueError
@@ -432,8 +431,7 @@ class VAEMModbusClient(ABC):
                     0,
                     VaemControlWords.STOPVALVES.value,
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
             else:
                 data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
@@ -441,8 +439,7 @@ class VAEMModbusClient(ABC):
                     0,
                     VaemControlWords.STARTVALVESRESETERROR.value,
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
 
             data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
@@ -450,8 +447,7 @@ class VAEMModbusClient(ABC):
                 0,
                 VaemControlWords.STARTVALVES.value,
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
             self.clear_control_word()
         else:
@@ -506,8 +502,7 @@ class VAEMModbusClient(ABC):
                 0,
                 VaemControlWords.STOPVALVES.value,
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
             self.clear_error()
         else:
             logger.warning("No VAEM Connected!!")
@@ -665,8 +660,7 @@ class VAEMModbusClient(ABC):
                 (valve_id - 1),
                 int(inrush_current),
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_inrush_current(self, valve_id: int) -> int | None:
         """
@@ -735,8 +729,7 @@ class VAEMModbusClient(ABC):
                 (valve_id - 1),
                 voltage,
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_nominal_voltage(self, valve_id: int) -> int | None:
         """
@@ -869,8 +862,7 @@ class VAEMModbusClient(ABC):
                 (valve_id - 1),
                 delay_time,
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_pickup_time(self, valve_id: int) -> int | None:
         """
@@ -940,8 +932,7 @@ class VAEMModbusClient(ABC):
                 (valve_id - 1),
                 pickup_time,
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_holding_current(self, valve_id: int) -> int | None:
         """
@@ -1010,8 +1001,7 @@ class VAEMModbusClient(ABC):
                 (valve_id - 1),
                 int(holding_current),
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_current_reduction_time(self, valve_id: int) -> int | None:
         """
@@ -1078,8 +1068,7 @@ class VAEMModbusClient(ABC):
                 (valve_id - 1),
                 int(reduction_time),
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def set_error_handling(self, activate: int) -> None:
         """
@@ -1108,8 +1097,7 @@ class VAEMModbusClient(ABC):
                 0,
                 int(not activate),
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
             self.error_handling_enabled = activate
             match activate:
                 case 0:
