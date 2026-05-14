@@ -1158,19 +1158,10 @@ class VAEMSerial:
             TypeError: Config does not match serial interface specs.
             RuntimeError: A runtime error with the serial interface has occurred.
         """
-        super().__init__(config)
-        logger.error(
-            """Modbus Serial backend is currently an experimental feature. \
-            Attempting operation with this feature may result in unexpected or incorrect behavior. \
-            This will be available as a fully supported feature in future releases."""
-        )
-        raise NotImplementedError(
-            "Modbus Serial backend is not yet implemented. This will be available in future releases."
-        )
         if not isinstance(config, VAEMSerialConfig):
             config_type = type(config)
             raise TypeError(
-                f"""Error: Config does not match the ModbusSerial backend.
+                f"""Error: Config does not match the Serial backend.
                             The type passed in was: {config_type}"""
             )
         try:
