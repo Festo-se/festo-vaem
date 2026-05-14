@@ -18,6 +18,7 @@ version = "0.2.2"
 requires-python = ">=3.10"
 dependencies = [
     "pymodbus<=3.11.4",
+    "pyserial<=3.5",
 ]
 
 [project.urls]
