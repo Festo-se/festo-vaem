@@ -22,7 +22,7 @@ Typical usage example:
 """
 
 import logging
-from vaem.vaem_communication import VAEMModbusSerial, VAEMModbusTCP
+from vaem.vaem_communication import VAEMSerial, VAEMModbusTCP
 from vaem.vaem_config import VAEMConfig, VAEMSerialConfig, VAEMTCPConfig
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class VAEM:
                     logger.debug("VAEM TCP/IP backend initialized with config: %s", self._config)
                 case VAEMSerialConfig():
                     logger.error("VAEM Serial backend is currently not implemented.")
-                    self._backend = VAEMModbusSerial(config=self._config)
+                    self._backend = VAEMSerial(config=self._config)
         else:
             logger.error("Error, configuration passed in is not supported by the driver")
             raise TypeError("Error, configuration passed in is not supported by the driver")
