@@ -1176,7 +1176,6 @@ class VAEMModbusTCP(VAEMBase):
             self.client.connect()
             self._vaem_init()
             self.version = None
-            self._read_param = {
                 "address": 0,
                 "length": 0x07,
             }
@@ -1245,3 +1244,26 @@ class VAEMSerial(VAEMBase):
             self.client = serial.Serial(port=self._config.com_port, baudrate=self._config.baudrate, timeout=1)
         except RuntimeError as run_err:
             logger.error("Runtime error: %s. ", str(run_err))
+
+    @property
+    def client(self) -> serial.Serial:
+        """
+        Get the Serial client instance.
+
+        Returns:
+            serial.Serial: The Serial client
+        """
+        return self._client
+
+    @client.setter
+    def client(self, value: serial.Serial) -> None:
+        """
+        Set the Serial client instance.
+
+        Args:
+            value (serial.Serial): The Serial client to set
+        """
+        if not isinstance(value, serial.Serial):
+            raise TypeError(f"Expected serial.Serial, got {type(value)}")
+            logging.error("Error: Expected serial.Serial, got %s", type(value))
+        self._client = value
