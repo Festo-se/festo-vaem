@@ -27,15 +27,13 @@ from .vaem_helper import (
 logger = logging.getLogger(__name__)
 
 
-class VAEMModbusClient(ABC):
-    """Modbus Client Class."""
-
-    client: ModbusBaseSyncClient
+class VAEMBase(ABC):
+    """Base VAEM Client Class."""
 
     @abstractmethod
     def __init__(self, config: VAEMConfig):
         """
-        VAEMModbusClient constructor.
+        VAEMBase constructor.
 
         Abstract base class to build out VAEM clients.
 
@@ -60,6 +58,17 @@ class VAEMModbusClient(ABC):
         self._init_done = True
         self.error_handling_enabled = 1
         self.active_valves = [0, 0, 0, 0, 0, 0, 0, 0]
+
+    @property
+    @abstractmethod
+    def client(self):
+        """
+        Abstract property for the client connection.
+
+        Returns:
+            Client connection object
+        """
+        pass
 
     def get_transfer_value(self, operation, index, sub_index=0, transfer_value=None) -> dict:
         """
@@ -1134,10 +1143,10 @@ class VAEMModbusClient(ABC):
         return None
 
 
-class VAEMModbusTCP(VAEMModbusClient):
+class VAEMModbusTCP(VAEMBase):
     """VAEM Modbus TCP client class."""
 
-    client: ModbusTcpClient
+    # client: ModbusTcpClient
 
     def __init__(self, config: VAEMTCPConfig):
         """
@@ -1182,8 +1191,31 @@ class VAEMModbusTCP(VAEMModbusClient):
             logger.error("Modbus IO error: %s. ", str(io_error))
             logger.info(self._config)
 
+    @property
+    def client(self) -> ModbusTcpClient:
+        """
+        Get the Modbus TCP client instance.
 
-class VAEMSerial(VAEMModbusClient):
+        Returns:
+            ModbusTcpClient: The TCP client
+        """
+        return self._client
+
+    @client.setter
+    def client(self, value: ModbusTcpClient) -> None:
+        """
+        Set the Modbus TCP client instance.
+
+        Args:
+            value (ModbusTcpClient): The TCP client to set
+        """
+        if not isinstance(value, ModbusTcpClient):
+            raise TypeError(f"Expected ModbusTcpClient, got {type(value)}")
+            logging.error("Error: Expected ModbusTcpClient, got %s", type(value))
+        self._client = value
+
+
+class VAEMSerial(VAEMBase):
     """Class used as the interface backend for using Serial communication."""
 
     client: serial.Serial
