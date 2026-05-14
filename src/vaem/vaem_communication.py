@@ -1175,15 +1175,6 @@ class VAEMModbusTCP(VAEMBase):
             self.client = ModbusTcpClient(host=self._config.ip, port=self._config.port)
             self.client.connect()
             self._vaem_init()
-            self.version = None
-                "address": 0,
-                "length": 0x07,
-            }
-            self._write_param = {
-                "address": 0,
-                "length": 0x07,
-            }
-            self.active_valves = [0, 0, 0, 0, 0, 0, 0, 0]
         except ConnectionError as e:
             logger.error("Connection error: %s. ", str(e))
         except ModbusIOException as io_error:
