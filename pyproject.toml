@@ -14,11 +14,10 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 keywords = ["Festo", "Valve", "Valves", "Actuation", "Valve Controller", "Controller"]
-version = "0.1.1"
+version = "0.2.2"
 requires-python = ">=3.10"
 dependencies = [
     "pymodbus<=3.11.4",
-    'rich>=14.0.0',
 ]
 
 [project.urls]
@@ -32,7 +31,7 @@ serial = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.9.17,<0.10.0"]
+requires = ["uv_build>=0.9.17,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
@@ -41,7 +40,10 @@ dev = [
     "pyserial<=3.5",
     "pymodbus[simulator]<=3.11.4",
     "pytest>=9.0.1",
-    "ruff"
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.14.0",
+    "ruff",
+    "ty"
 ]
 docs = [
     "mkdocs>=1.6.1",
@@ -58,6 +60,14 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true } }]
 
 [tool.uv.build-backend]
 module-name = "vaem"
+
+[tool.ty.src]
+include=[
+    "src"
+]
+exclude = [
+    "tests"
+]
 
 [tool.ruff]
 line-length = 120
@@ -93,5 +103,9 @@ exclude = [
     ".vscode",
     ".venv",
     ".pytest_cache",
-    "tests",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "hardware: marks tests as hardware integration tests (deselect with '-m \"not hardware\"')",
 ]

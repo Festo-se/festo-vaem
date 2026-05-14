@@ -7,6 +7,15 @@ The format is derived from [Keep A Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-17
+### Added
+
+- Testing suites for virtualized and actual connected hardware
+- CI for Testing
+
+### Fixed
+
+- Connection issue where VAEM would sporadically missed valve triggers
 
 ## [0.1.0] - 2022-2026
 ### Added

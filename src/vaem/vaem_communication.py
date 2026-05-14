@@ -7,9 +7,10 @@ and abstracting it all from the user.
 
 import logging
 import struct
+import time
 from abc import ABC, abstractmethod
 
-from pymodbus.client import ModbusBaseClient, ModbusSerialClient, ModbusTcpClient
+from pymodbus.client import ModbusBaseSyncClient, ModbusSerialClient, ModbusTcpClient
 from pymodbus.exceptions import ModbusException, ModbusIOException
 
 from .vaem_config import VAEMConfig, VAEMSerialConfig, VAEMTCPConfig
@@ -28,6 +29,8 @@ logger = logging.getLogger(__name__)
 class VAEMModbusClient(ABC):
     """Modbus Client Class."""
 
+    client: ModbusBaseSyncClient
+
     @abstractmethod
     def __init__(self, config: VAEMConfig):
         """
@@ -44,7 +47,6 @@ class VAEMModbusClient(ABC):
             None
         """
         self._config = config
-        self.client = ModbusBaseClient
         self.version = None
         self._read_param = {
             "address": 0,
@@ -180,17 +182,17 @@ class VAEMModbusClient(ABC):
         Returns:
             Response from VAEM device.
         """
-        data = 0
-        if not self.client.connected:
+        if not self.client.connected:  # type: ignore[attr-defined, ty:unresolved-attribute]
             self.client.connect()
         try:
-            data = self.client.readwrite_registers(
+            data = self.client.readwrite_registers(  # type: ignore[missing-argument]
                 read_address=self._read_param["address"],
                 read_count=self._read_param["length"],
                 write_address=self._write_param["address"],
                 values=write_data,
                 device_id=self._config.unit_id,
             )
+            time.sleep(0.001)
             return data.registers
         except ModbusException as modbus_error:
             logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
@@ -202,9 +204,6 @@ class VAEMModbusClient(ABC):
 
         the correct read and write for the driver.
         """
-        data = {}
-        frame = []
-
         if self._init_done:
             try:
                 # set operating mode
@@ -238,7 +237,6 @@ class VAEMModbusClient(ABC):
             None
         """
         data = {}
-        frame = []
         if self._init_done:
             # save settings
             data["access"] = VaemAccess.WRITE.value
@@ -273,7 +271,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id in range(1, 9):
                 # get currently selected valves
@@ -320,7 +317,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id in range(1, 9):
                 # get currently selected valves
@@ -367,7 +363,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             opening_time = int(opening_time / 0.2)
             if (opening_time in range(0, 9999999999999)) and (valve_id in range(1, 9)):
@@ -397,7 +392,6 @@ class VAEMModbusClient(ABC):
         Returns:
             None
         """
-        data = {}
         if self._init_done:
             # save settings
             if self.error_handling_enabled:
@@ -407,6 +401,8 @@ class VAEMModbusClient(ABC):
                     0,
                     VaemControlWords.STOPVALVES.value,
                 )
+                frame = self._construct_frame(data)
+                self._transfer(frame)
             else:
                 data = self._get_transfer_value(
                     VaemAccess.WRITE.value,
@@ -414,8 +410,8 @@ class VAEMModbusClient(ABC):
                     0,
                     VaemControlWords.STARTVALVESRESETERROR.value,
                 )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+                frame = self._construct_frame(data)
+                self._transfer(frame)
 
             data = self._get_transfer_value(
                 VaemAccess.WRITE.value,
@@ -426,22 +422,7 @@ class VAEMModbusClient(ABC):
             frame = self._construct_frame(data)
             self._transfer(frame)
 
-            """
-            data = self._get_transfer_value(VaemAccess.READ.value, VaemIndex.CONTROLWORD, 0, 0)
-            frame = self._construct_frame(data)
-            while True:
-                resp = self._transfer(frame)
-                if self._deconstruct_frame(resp)["transferValue"] == VaemControlWords.STARTVALVESRESETERROR.value:
-                    break
-
-            # reset the control word
-            data = self._get_transfer_value(
-                VaemAccess.WRITE.value, VaemIndex.CONTROLWORD, 0, VaemControlWords.RESETERRORS.value
-            )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
-            """
-            self.clear_error()
+            self.clear_control_word()
         else:
             logger.warning("No VAEM Connected!!")
 
@@ -486,7 +467,6 @@ class VAEMModbusClient(ABC):
         Returns:
             None
         """
-        data = {}
         if self._init_done:
             # save settings
             data = self._get_transfer_value(
@@ -500,6 +480,34 @@ class VAEMModbusClient(ABC):
             self.clear_error()
         else:
             logger.warning("No VAEM Connected!!")
+
+    def get_control_word(self) -> int | None:
+        """
+        Gets the current control word of the VAEM.
+
+        Typical usage example:
+            control_word = vaem.get_control_word()
+
+            print(control_word)
+
+        Args:
+            None
+
+        Returns:
+            Control word of the VAEM. For more information, please refer to the VAEM Operation Instruction manual.
+        """
+        if self._init_done:
+            data = self._get_transfer_value(
+                VaemAccess.READ.value,
+                VaemIndex.CONTROLWORD,
+                0,
+                0,
+            )
+            frame = self._construct_frame(data)
+            resp = self._transfer(frame)
+            return int(self._deconstruct_frame(resp)["transferValue"])
+        logger.warning("No VAEM Connected!!")
+        return None
 
     def get_status(self) -> dict:
         """
@@ -522,7 +530,6 @@ class VAEMModbusClient(ABC):
         Returns:
             Dictionary of the status for the device. For more information, please refer to the VAEM Operation Instruction manual.
         """
-        data = {}
         if self._init_done:
             data = self._get_transfer_value(
                 VaemAccess.READ.value,
@@ -537,6 +544,29 @@ class VAEMModbusClient(ABC):
         logger.warning("No VAEM Connected!!")
         return {}
 
+    def clear_control_word(self) -> None:
+        """
+        Clears the control word of the VAEM.
+
+        This is used to reset the control word after an open or close command.
+
+        Typical usage example:
+            vaem.clear_control_word()
+        """
+        if self._init_done:
+            data = self._get_transfer_value(
+                VaemAccess.WRITE.value,
+                VaemIndex.CONTROLWORD,
+                0,
+                VaemControlWords.RESETSTATE.value,
+            )
+            frame = self._construct_frame(data)
+            resp = self._transfer(frame)
+            if self._deconstruct_frame(resp)["errorRet"] == 0:
+                logger.info("Control word cleared successfully")
+        else:
+            logger.warning("No VAEM Connected!!")
+
     def clear_error(self) -> None:
         """
         If any error occurs in valve opening, must be cleared with this opperation.
@@ -550,7 +580,6 @@ class VAEMModbusClient(ABC):
         Returns:
             None
         """
-        data = {}
         if self._init_done:
             data = self._get_transfer_value(
                 VaemAccess.WRITE.value,
@@ -559,7 +588,14 @@ class VAEMModbusClient(ABC):
                 VaemControlWords.RESETERRORS.value,
             )
             frame = self._construct_frame(data)
-            self._transfer(frame)
+            response = self._transfer(frame)
+            if self._deconstruct_frame(response)["errorRet"] == 0:
+                logger.info("Error cleared successfully")
+                self.clear_control_word()
+            else:
+                logger.error(
+                    "Error could not be cleared, error code: %s", self._deconstruct_frame(response)["errorRet"]
+                )
         else:
             logger.warning("No VAEM Connected!!")
 
@@ -585,7 +621,6 @@ class VAEMModbusClient(ABC):
             ValueError: Valve index out of bounds
             ValueError: Input value for current not in range 20 - 1000 mA
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was: {valve_id}, IDs range from 1-8")
@@ -622,7 +657,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was: {valve_id}, IDs range from 1-8")
@@ -659,7 +693,6 @@ class VAEMModbusClient(ABC):
             ValueError: Valve index out of bounds
             ValueError: Input value for voltage not in range 8000 - 24000 mV
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was: {valve_id}, IDs range from 1-8")
@@ -692,7 +725,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was: {valve_id}, IDs range from 1-8")
@@ -727,7 +759,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was: {valve_id}, IDs range from 1-8")
@@ -762,7 +793,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
@@ -798,7 +828,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
@@ -832,7 +861,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
@@ -869,7 +897,6 @@ class VAEMModbusClient(ABC):
             ValueError: Valve index out of bounds
             ValueError: Input value for pickup time not in range 1 - 500 ms
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
@@ -905,7 +932,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
@@ -942,7 +968,6 @@ class VAEMModbusClient(ABC):
             ValueError: Valve index out of bounds
             ValueError: Input value for holding current not in range 20 - 400 mA
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
@@ -977,7 +1002,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
@@ -1013,10 +1037,10 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Valve index out of bounds
         """
-        data = {}
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
+            reduction_time = int(reduction_time * 5)
             data = self._get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.CURRENTREDUCTIONTIME,
@@ -1044,7 +1068,6 @@ class VAEMModbusClient(ABC):
         Raises:
             ValueError: Input value for activation was not a 1 or 0
         """
-        data = {}
         if self._init_done:
             if activate not in (0, 1):
                 raise ValueError(f"Error, value inputted was {activate}, Either a 1 or 0 is accepted")
@@ -1079,7 +1102,6 @@ class VAEMModbusClient(ABC):
         Returns:
             State of internal error handling. 1 for enabled, 0 for disabled
         """
-        data = {}
         if self._init_done:
             data = self._get_transfer_value(
                 VaemAccess.READ.value,
@@ -1095,6 +1117,8 @@ class VAEMModbusClient(ABC):
 
 class VAEMModbusTCP(VAEMModbusClient):
     """VAEM Modbus TCP client class."""
+
+    client: ModbusTcpClient
 
     def __init__(self, config: VAEMTCPConfig):
         """
