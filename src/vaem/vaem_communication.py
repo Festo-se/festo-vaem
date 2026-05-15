@@ -143,32 +143,19 @@ class VAEMBase(ABC):
         status["Valve8"] = (status_word & 0x8000) >> 15
         return status
 
-    def _construct_frame(self, data: dict) -> list:
+    @abstractmethod
+    def _construct_frame(self, data: dict) -> list | str:
         """
         Constructs data frame for transfer to VAEM device.
 
         Args:
             data (dict): Data to be sent to VAEM device
         Returns:
-            list of values to be passed as the expected data type of the Modbus data frame
+            list or string containing values to be passed to the device
         """
-        frame = []
-        tmp = struct.pack(
-            ">BBHBBQ",
-            data["access"],
-            data["dataType"],
-            data["paramIndex"],
-            data["paramSubIndex"],
-            data["errorRet"],
-            data["transferValue"],
-        )
-        try:
-            for i in range(0, len(tmp) - 1, 2):
-                frame.append((tmp[i] << 8) + tmp[i + 1])
-        except ValueError as e:
-            logger.error("Value error: %s. ", str(e))
-        return frame
+        pass
 
+    @abstractmethod
     def _deconstruct_frame(self, frame) -> dict:
         """
         Deconstructs incoming data frame from VAEM device.
@@ -178,20 +165,10 @@ class VAEMBase(ABC):
         Returns:
             data: dictionary that contains the information from the dataframe.
         """
-        data = {}
-        if frame is not None:
-            data["access"] = (frame[0] & 0xFF00) >> 8
-            data["dataType"] = frame[0] & 0x00FF
-            data["paramIndex"] = frame[1]
-            data["paramSubIndex"] = (frame[2] & 0xFF00) >> 8
-            data["errorRet"] = frame[2] & 0x00FF
-            data["transferValue"] = 0
-            for i in range(4):
-                data["transferValue"] += frame[len(frame) - 1 - i] << (i * 16)
+        pass
 
-        return data
-
-    def _transfer(self, write_data: list):
+    @abstractmethod
+    def _transfer(self, write_data: list | str):
         """
         Method of transferring information from Python driver to device.
 
@@ -200,21 +177,7 @@ class VAEMBase(ABC):
         Returns:
             Response from VAEM device.
         """
-        if not self.client.connected:  # type: ignore[attr-defined, ty:unresolved-attribute]
-            self.client.connect()
-        try:
-            data = self.client.readwrite_registers(  # type: ignore[missing-argument]
-                read_address=self._read_param["address"],
-                read_count=self._read_param["length"],
-                write_address=self._write_param["address"],
-                values=write_data,
-                device_id=self._config.unit_id,
-            )
-            time.sleep(0.001)
-            return data.registers
-        except ModbusException as modbus_error:
-            logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
-        return None
+        pass
 
     def send_command(self, data: dict) -> dict | None:
         """
@@ -326,7 +289,7 @@ class VAEMBase(ABC):
                 data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
                     VaemIndex.SELECTVALVE,
-                    vaemValveIndex[valve_id] | self._deconstruct_frame(resp)["transferValue"],
+                    vaemValveIndex[valve_id] | resp["transferValue"],
                 )
                 self.send_command(data)
                 self.active_valves[valve_id - 1] = 1
@@ -365,16 +328,14 @@ class VAEMBase(ABC):
                     VaemIndex.SELECTVALVE,
                     vaemValveIndex[valve_id],
                 )
-                frame = self._construct_frame(data)
-                resp = self._transfer(frame)
+                resp = self.send_command(data)
                 # deselect new valve
                 data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
                     VaemIndex.SELECTVALVE,
-                    self._deconstruct_frame(resp)["transferValue"] & (~(vaemValveIndex[valve_id])),
+                    resp["transferValue"] & (~(vaemValveIndex[valve_id])),
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
                 self.active_valves[valve_id - 1] = 0
             else:
                 logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
@@ -1146,7 +1107,7 @@ class VAEMBase(ABC):
 class VAEMModbusTCP(VAEMBase):
     """VAEM Modbus TCP client class."""
 
-    # client: ModbusTcpClient
+    client: ModbusTcpClient
 
     def __init__(self, config: VAEMTCPConfig):
         """
@@ -1199,10 +1160,80 @@ class VAEMModbusTCP(VAEMBase):
         Args:
             value (ModbusTcpClient): The TCP client to set
         """
-        if not isinstance(value, ModbusTcpClient):
-            raise TypeError(f"Expected ModbusTcpClient, got {type(value)}")
-            logging.error("Error: Expected ModbusTcpClient, got %s", type(value))
         self._client = value
+
+    def _construct_frame(self, data: dict) -> list:
+        """
+        Constructs data frame for transfer to VAEM device.
+
+        Args:
+            data (dict): Data to be sent to VAEM device
+        Returns:
+            list of values to be passed as the expected data type of the Modbus data frame
+        """
+        frame = []
+        tmp = struct.pack(
+            ">BBHBBQ",
+            data["access"],
+            data["dataType"],
+            data["paramIndex"],
+            data["paramSubIndex"],
+            data["errorRet"],
+            data["transferValue"],
+        )
+        try:
+            for i in range(0, len(tmp) - 1, 2):
+                frame.append((tmp[i] << 8) + tmp[i + 1])
+        except ValueError as e:
+            logger.error("Value error: %s. ", str(e))
+        return frame
+
+    def _deconstruct_frame(self, frame) -> dict:
+        """
+        Deconstructs incoming data frame from VAEM device.
+
+        Args:
+            frame: dict coming in from the device
+        Returns:
+            data: dictionary that contains the information from the dataframe.
+        """
+        data = {}
+        if frame is not None:
+            data["access"] = (frame[0] & 0xFF00) >> 8
+            data["dataType"] = frame[0] & 0x00FF
+            data["paramIndex"] = frame[1]
+            data["paramSubIndex"] = (frame[2] & 0xFF00) >> 8
+            data["errorRet"] = frame[2] & 0x00FF
+            data["transferValue"] = 0
+            for i in range(4):
+                data["transferValue"] += frame[len(frame) - 1 - i] << (i * 16)
+
+        return data
+
+    def _transfer(self, write_data: list):
+        """
+        Method of transferring information from Python driver to device.
+
+        Args:
+            write_data: List of data that will be transferred to VAEM device
+        Returns:
+            Response from VAEM device.
+        """
+        if not self.client.connected:  # type: ignore[attr-defined, ty:unresolved-attribute]
+            self.client.connect()
+        try:
+            data = self.client.readwrite_registers(  # type: ignore[missing-argument]
+                read_address=self._read_param["address"],
+                read_count=self._read_param["length"],
+                write_address=self._write_param["address"],
+                values=write_data,
+                device_id=self._config.unit_id,
+            )
+            time.sleep(0.001)
+            return data.registers
+        except ModbusException as modbus_error:
+            logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
+        return None
 
 
 class VAEMSerial(VAEMBase):
@@ -1258,3 +1289,10 @@ class VAEMSerial(VAEMBase):
             raise TypeError(f"Expected serial.Serial, got {type(value)}")
             logging.error("Error: Expected serial.Serial, got %s", type(value))
         self._client = value
+
+
+# TODO
+"""
+Move _transfer to a virtual function and have each child class implement it's own version of it. 
+This is due to the fact that each client will write differently to the device depending on if it is tcp or serial
+"""
