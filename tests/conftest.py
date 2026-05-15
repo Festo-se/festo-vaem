@@ -105,13 +105,21 @@ def vaem_tcp_backend(mocker):
     # Mock the ModbusTcpClient before creating VAEMModbusTCP instance
     mock_client = MagicMock()
     mock_client.connect.return_value = True
-    mock_client.read_holding_registers.return_value = MagicMock(registers=[0x0001])
-    mock_client.write_register.return_value = MagicMock(isError=lambda: False)
-    mock_client.write_registers.return_value = MagicMock(isError=lambda: False)
+    mock_client.connected = True
+    
+    # Create a proper response mock that has registers as a list
+    # The registers represent the response frame from the VAEM device
+    mock_response = MagicMock()
+    mock_response.registers = [0x0001, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000]
+    
+    # All Modbus read/write operations return similar responses
+    mock_client.readwrite_registers.return_value = mock_response
+    mock_client.read_holding_registers.return_value = mock_response
+    mock_client.write_register.return_value = mock_response
+    mock_client.write_registers.return_value = mock_response
     
     mocker.patch("vaem.vaem_communication.ModbusTcpClient", return_value=mock_client)
     
     backend = VAEMModbusTCP(config=config)
-    backend._client = mock_client
     
     return backend
