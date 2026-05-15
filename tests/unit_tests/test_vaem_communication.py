@@ -97,7 +97,7 @@ class TestVAEMModbusClientGetTransferValue:
     def test_get_transfer_value_read_operation(self, vaem_tcp_backend):
         """Test generating transfer value for read operation."""
         backend = vaem_tcp_backend
-        result = backend._get_transfer_value(
+        result = backend.get_transfer_value(
             VaemAccess.READ.value,
             VaemIndex.STATUSWORD,
             0,
@@ -110,7 +110,7 @@ class TestVAEMModbusClientGetTransferValue:
     def test_get_transfer_value_write_operation(self, vaem_tcp_backend):
         """Test generating transfer value for write operation."""
         backend = vaem_tcp_backend
-        result = backend._get_transfer_value(
+        result = backend.get_transfer_value(
             VaemAccess.WRITE.value,
             VaemIndex.INRUSHCURRENT,
             0,
@@ -123,7 +123,7 @@ class TestVAEMModbusClientGetTransferValue:
     def test_get_transfer_value_uint32_datatype(self, vaem_tcp_backend):
         """Test transfer value with UINT32 data type."""
         backend = vaem_tcp_backend
-        result = backend._get_transfer_value(
+        result = backend.get_transfer_value(
             VaemAccess.READ.value,
             VaemIndex.SWITCHINGTIME,
             0,
@@ -134,7 +134,7 @@ class TestVAEMModbusClientGetTransferValue:
     def test_get_transfer_value_uint8_datatype(self, vaem_tcp_backend):
         """Test transfer value with UINT8 data type."""
         backend = vaem_tcp_backend
-        result = backend._get_transfer_value(
+        result = backend.get_transfer_value(
             VaemAccess.WRITE.value,
             VaemIndex.OPERATINGMODE,
             0,
@@ -145,7 +145,7 @@ class TestVAEMModbusClientGetTransferValue:
     def test_get_transfer_value_select_valve(self, vaem_tcp_backend):
         """Test transfer value for select valve operation."""
         backend = vaem_tcp_backend
-        result = backend._get_transfer_value(
+        result = backend.get_transfer_value(
             VaemAccess.WRITE.value,
             VaemIndex.SELECTVALVE,
             1,  # valve index
