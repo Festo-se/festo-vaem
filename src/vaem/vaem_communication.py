@@ -1299,10 +1299,27 @@ class VAEMSerial(VAEMBase):
         Returns:
             string of values to be passed as the expected data type of the Modbus data frame
         """
-        frame = f"W{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}"
+        match data["dataType"]:
+            case 1:
+                data["dataType"] = "8"
+            case 2:
+                data["dataType"] = "16"
+            case 3:
+                data["dataType"] = "32"
+            case 4:
+                data["dataType"] = "64"
+
+        match data["access"]:
+            case 0:
+                data["access"] = "R"
+            case 1:
+                data["access"] = "W"
+        frame = (
+            f"{data['access']}U{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}"
+        )
         return frame
 
-    def _deconstruct_frame(self, frame) -> dict:
+    def _deconstruct_frame(self, frame: str) -> dict:
         """
         Deconstructs incoming data frame from VAEM device.
 
@@ -1312,16 +1329,17 @@ class VAEMSerial(VAEMBase):
             data: dictionary that contains the information from the dataframe.
         """
         data = {}
-        if frame is not None:
-            data["access"] = (frame[0] & 0xFF00) >> 8
-            data["dataType"] = frame[0] & 0x00FF
-            data["paramIndex"] = frame[1]
-            data["paramSubIndex"] = (frame[2] & 0xFF00) >> 8
-            data["errorRet"] = frame[2] & 0x00FF
-            data["transferValue"] = 0
-            for i in range(4):
-                data["transferValue"] += frame[len(frame) - 1 - i] << (i * 16)
+        message = frame.strip()
+        command, payload = message.split()
+        index_position = payload.find("I")
+        sub_index_position = payload.find("S")
+        value_position = payload.find("V")
 
+        data["access"] = command[0]
+        data["dataType"] = command[1:]
+        data["paramIndex"] = int(payload[index_position + 1 : sub_index_position])
+        data["paramSubIndex"] = int(payload[sub_index_position + 1 : value_position])
+        data["transferValue"] = int(payload[value_position + 1 :])
         return data
 
     def _transfer(self, write_data: str):
