@@ -1290,6 +1290,62 @@ class VAEMSerial(VAEMBase):
             logging.error("Error: Expected serial.Serial, got %s", type(value))
         self._client = value
 
+    def _construct_frame(self, data: dict) -> str:
+        """
+        Constructs data frame for transfer to VAEM device.
+
+        Args:
+            data (dict): Data to be sent to VAEM device
+        Returns:
+            string of values to be passed as the expected data type of the Modbus data frame
+        """
+        frame = f"W{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}"
+        return frame
+
+    def _deconstruct_frame(self, frame) -> dict:
+        """
+        Deconstructs incoming data frame from VAEM device.
+
+        Args:
+            frame: dict coming in from the device
+        Returns:
+            data: dictionary that contains the information from the dataframe.
+        """
+        data = {}
+        if frame is not None:
+            data["access"] = (frame[0] & 0xFF00) >> 8
+            data["dataType"] = frame[0] & 0x00FF
+            data["paramIndex"] = frame[1]
+            data["paramSubIndex"] = (frame[2] & 0xFF00) >> 8
+            data["errorRet"] = frame[2] & 0x00FF
+            data["transferValue"] = 0
+            for i in range(4):
+                data["transferValue"] += frame[len(frame) - 1 - i] << (i * 16)
+
+        return data
+
+    def _transfer(self, write_data: str):
+        """
+        Method of transferring information from Python driver to device.
+
+        Args:
+            write_data: String of data that will be transferred to VAEM device
+        Returns:
+            Response from VAEM device.
+        """
+        # if not self.client.connected:  # type: ignore[attr-defined, ty:unresolved-attribute]
+        # self.client.connect()
+        try:
+            self.client.reset_input_buffer()
+            self.client.write(write_data.encode("ascii"))
+            self.client.flush()
+            response = self.client.read(100)
+            time.sleep(0.001)
+            return response.decode("ascii")
+        except ModbusException as modbus_error:
+            logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
+        return None
+
 
 # TODO
 """
