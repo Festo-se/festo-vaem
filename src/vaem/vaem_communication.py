@@ -1314,9 +1314,7 @@ class VAEMSerial(VAEMBase):
                 data["access"] = "R"
             case 1:
                 data["access"] = "W"
-        frame = (
-            f"{data['access']}U{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}"
-        )
+        frame = f"{data['access']}U{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}\r"
         return frame
 
     def _deconstruct_frame(self, frame: str) -> dict:
@@ -1357,7 +1355,7 @@ class VAEMSerial(VAEMBase):
             self.client.reset_input_buffer()
             self.client.write(write_data.encode("ascii"))
             self.client.flush()
-            response = self.client.read(100)
+            response = self.client.read_until(b"\r")
             time.sleep(0.001)
             return response.decode("ascii")
         except ModbusException as modbus_error:
