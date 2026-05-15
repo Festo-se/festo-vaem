@@ -1314,7 +1314,7 @@ class VAEMSerial(VAEMBase):
                 data["access"] = "R"
             case 1:
                 data["access"] = "W"
-        frame = f"{data['access']}U{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}\r"
+        frame = f"\r\n{data['access']}U{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}\r\n"
         return frame
 
     def _deconstruct_frame(self, frame: str) -> dict:
