@@ -499,8 +499,7 @@ class VAEMBase(ABC):
                 0,
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             return int(self._deconstruct_frame(resp)["transferValue"])
         logger.warning("No VAEM Connected!!")
         return None
@@ -1302,12 +1301,12 @@ class VAEMSerial(VAEMBase):
     def _construct_frame(self, data: dict) -> str:
         """
         Constructs data frame for transfer to VAEM device.
+
         Args:
             data (dict): Data to be sent to VAEM device
         Returns:
             string of values to be passed as the expected data type of the Modbus data frame
         """
-
         match data["dataType"]:
             case 1:
                 data["dataType"] = "08"
@@ -1339,8 +1338,15 @@ class VAEMSerial(VAEMBase):
 
         command, _ = message.split()
         return_code_index = command.find("E")
-        data["errorRet"] = int(command[return_code_index + 1 :])
-        logger.info("Returned code: %s", command[return_code_index:])
+        match command[1]:
+            case "W":
+                data["errorRet"] = int(command[return_code_index + 1 :])
+            case "R":
+                transfer_value_index = command.find("V")
+                data["errorRet"] = int(command[return_code_index + 1 : transfer_value_index])
+                data["transferValue"] = int(command[transfer_value_index + 1 :])
+                logger.info("Returned Value: %s", data["transferValue"])
+        logger.info("Returned error: %s", data["errorRet"])
         return data
         """
         index_position = payload.find("I")
@@ -1369,7 +1375,6 @@ class VAEMSerial(VAEMBase):
             self.client.reset_input_buffer()
             self.client.write(write_data.encode("ascii"))
             self.client.flush()
-            time.sleep(1)
             response = self.client.readall()
             time.sleep(0.001)
             return response.decode("ascii")
@@ -1377,9 +1382,11 @@ class VAEMSerial(VAEMBase):
             logger.error("Transfer error: %s", str(error))
         return None
 
-
-# TODO
-"""
-Move _transfer to a virtual function and have each child class implement it's own version of it. 
-This is due to the fact that each client will write differently to the device depending on if it is tcp or serial
-"""
+    def __del__(self):
+        """Destructor for VAEMSerial class. Closes the serial connection when the object is deleted."""
+        try:
+            if self.client and self.client.is_open:
+                self.client.close()
+        except:
+            logger.error("Error occurred while closing serial connection.")
+            pass
