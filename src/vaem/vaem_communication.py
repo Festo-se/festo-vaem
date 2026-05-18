@@ -1316,7 +1316,10 @@ class VAEMSerial(VAEMBase):
                 data["access"] = "R"
             case 1:
                 data["access"] = "W"
-        frame = f"\r\n{data['access']}U{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}\r\n"
+        # Build frame without leading \r\n - only trailing line ending (added by _transfer)
+        frame = (
+            f"{data['access']}U{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}"
+        )
         return frame
 
     def _deconstruct_frame(self, frame: str) -> dict:
@@ -1351,18 +1354,15 @@ class VAEMSerial(VAEMBase):
         Returns:
             Response from VAEM device.
         """
-        # if not self.client.connected:  # type: ignore[attr-defined, ty:unresolved-attribute]
-        # self.client.connect()
         try:
             self.client.reset_input_buffer()
             self.client.write(write_data.encode("ascii"))
             self.client.flush()
             response = self.client.read(100)
             time.sleep(0.001)
-            print(len(response.decode("ascii")))
             return response.decode("ascii")
-        except ModbusException as modbus_error:
-            logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
+        except Exception as error:
+            logger.error("Transfer error: %s", str(error))
         return None
 
 
