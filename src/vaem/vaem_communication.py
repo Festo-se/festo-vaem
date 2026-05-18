@@ -1264,7 +1264,14 @@ class VAEMSerial(VAEMBase):
             )
         try:
             self._config = config
-            self.client = serial.Serial(port=self._config.com_port, baudrate=self._config.baudrate, timeout=1)
+            self.client = serial.Serial(
+                port=self._config.com_port,
+                baudrate=self._config.baudrate,
+                bytesize=8,
+                parity="N",
+                stopbits=1,
+                timeout=1,
+            )
             self._vaem_init()
         except RuntimeError as run_err:
             logger.error("Runtime error: %s. ", str(run_err))
