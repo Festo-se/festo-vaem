@@ -1255,6 +1255,7 @@ class VAEMSerial(VAEMBase):
             TypeError: Config does not match serial interface specs.
             RuntimeError: A runtime error with the serial interface has occurred.
         """
+        super().__init__(config)
         if not isinstance(config, VAEMSerialConfig):
             config_type = type(config)
             raise TypeError(
