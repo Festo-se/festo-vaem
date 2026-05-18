@@ -1265,6 +1265,7 @@ class VAEMSerial(VAEMBase):
         try:
             self._config = config
             self.client = serial.Serial(port=self._config.com_port, baudrate=self._config.baudrate, timeout=1)
+            self._vaem_init()
         except RuntimeError as run_err:
             logger.error("Runtime error: %s. ", str(run_err))
 
@@ -1302,7 +1303,7 @@ class VAEMSerial(VAEMBase):
         """
         match data["dataType"]:
             case 1:
-                data["dataType"] = "8"
+                data["dataType"] = "08"
             case 2:
                 data["dataType"] = "16"
             case 3:
