@@ -1302,12 +1302,12 @@ class VAEMSerial(VAEMBase):
     def _construct_frame(self, data: dict) -> str:
         """
         Constructs data frame for transfer to VAEM device.
-
         Args:
             data (dict): Data to be sent to VAEM device
         Returns:
             string of values to be passed as the expected data type of the Modbus data frame
         """
+
         match data["dataType"]:
             case 1:
                 data["dataType"] = "08"
@@ -1320,13 +1320,9 @@ class VAEMSerial(VAEMBase):
 
         match data["access"]:
             case 0:
-                data["access"] = "R"
+                frame = f"RU{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}\r"
             case 1:
-                data["access"] = "W"
-        # Build frame without leading \r\n - only trailing line ending (added by _transfer)
-        frame = (
-            f"{data['access']}U{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}"
-        )
+                frame = f"WU{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}\r"
         return frame
 
     def _deconstruct_frame(self, frame: str) -> dict:
@@ -1340,7 +1336,13 @@ class VAEMSerial(VAEMBase):
         """
         data = {}
         message = frame.strip()
-        command, payload = message.split()
+
+        command, _ = message.split()
+        return_code_index = command.find("E")
+        data["errorRet"] = int(command[return_code_index + 1 :])
+        logger.info("Returned code: %s", command[return_code_index:])
+        return data
+        """
         index_position = payload.find("I")
         sub_index_position = payload.find("S")
         value_position = payload.find("V")
@@ -1351,6 +1353,7 @@ class VAEMSerial(VAEMBase):
         data["paramSubIndex"] = int(payload[sub_index_position + 1 : value_position])
         data["transferValue"] = int(payload[value_position + 1 :])
         return data
+        """
 
     def _transfer(self, write_data: str):
         """
@@ -1362,10 +1365,12 @@ class VAEMSerial(VAEMBase):
             Response from VAEM device.
         """
         try:
+            print("BYTES: ", list(write_data.encode("ascii")))
             self.client.reset_input_buffer()
             self.client.write(write_data.encode("ascii"))
             self.client.flush()
-            response = self.client.read(100)
+            time.sleep(1)
+            response = self.client.readall()
             time.sleep(0.001)
             return response.decode("ascii")
         except Exception as error:
