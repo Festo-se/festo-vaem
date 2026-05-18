@@ -1355,8 +1355,9 @@ class VAEMSerial(VAEMBase):
             self.client.reset_input_buffer()
             self.client.write(write_data.encode("ascii"))
             self.client.flush()
-            response = self.client.read_until(b"\r")
+            response = self.client.read(100)
             time.sleep(0.001)
+            print(len(response.decode("ascii")))
             return response.decode("ascii")
         except ModbusException as modbus_error:
             logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
