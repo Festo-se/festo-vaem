@@ -57,8 +57,8 @@ class VAEM:
                     self._backend = VAEMModbusTCP(config=self._config)
                     logger.debug("VAEM TCP/IP backend initialized with config: %s", self._config)
                 case VAEMSerialConfig():
-                    logger.error("VAEM Serial backend is currently not implemented.")
                     self._backend = VAEMSerial(config=self._config)
+                    logger.debug("VAEM Serial backend initialized with config: %s", self._config)
         else:
             logger.error("Error, configuration passed in is not supported by the driver")
             raise TypeError("Error, configuration passed in is not supported by the driver")
