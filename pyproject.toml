@@ -107,6 +107,7 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = [
     "hardware: marks tests as hardware integration tests (deselect with '-m \"not hardware\"')",
 ]
