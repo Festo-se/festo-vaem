@@ -122,7 +122,7 @@ class TestVaemIndex:
 
     def test_vaem_index_save_parameters(self):
         """Test SAVEPARAMETERS index value."""
-        assert VaemIndex.SAVEPARAMETERS.value == 0x11
+        assert VaemIndex.SAVEPARAMETERS.value == 0x0B
 
     def test_vaem_index_select_valve(self):
         """Test SELECTVALVE index value."""
