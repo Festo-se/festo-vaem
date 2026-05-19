@@ -566,7 +566,7 @@ class VAEMBase(ABC):
                 VaemControlWords.RESETSTATE.value,
             )
             resp = self.send_command(data)
-            if self._deconstruct_frame(resp)["errorRet"] == 0:
+            if resp["errorRet"] == 0:
                 logger.info("Control word cleared successfully")
         else:
             logger.warning("No VAEM Connected!!")
@@ -592,7 +592,7 @@ class VAEMBase(ABC):
                 VaemControlWords.RESETERRORS.value,
             )
             resp = self.send_command(data)
-            if self._deconstruct_frame(resp)["errorRet"] == 0:
+            if resp["errorRet"] == 0:
                 logger.info("Error cleared successfully")
                 self.clear_control_word()
             else:
@@ -1097,7 +1097,7 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(not self._deconstruct_frame(resp)["transferValue"])
+            return int(not resp["transferValue"])
         return None
 
 
