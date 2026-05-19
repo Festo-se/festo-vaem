@@ -1372,9 +1372,11 @@ class VAEMSerial(VAEMBase):
         return_code_index = command.find("E")
         match command[1]:
             case "W":
+                data["access"] = VaemAccess.WRITE.value
                 data["errorRet"] = int(command[return_code_index + 1 :])
             case "R":
                 transfer_value_index = command.find("V")
+                data["access"] = VaemAccess.READ.value
                 data["errorRet"] = int(command[return_code_index + 1 : transfer_value_index])
                 data["transferValue"] = int(command[transfer_value_index + 1 :])
                 logger.info("Returned Value: %s", data["transferValue"])
