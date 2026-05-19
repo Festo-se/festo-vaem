@@ -430,7 +430,6 @@ class VAEMBase(ABC):
                 VaemControlWords.STARTVALVES.value,
             )
             self.send_command(data)
-
             self.clear_control_word()
         else:
             logger.warning("No VAEM Connected!!")
@@ -544,8 +543,7 @@ class VAEMBase(ABC):
                 0,
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             logger.info(self._get_status(self._deconstruct_frame(resp)["transferValue"]))
             return self._get_status(self._deconstruct_frame(resp)["transferValue"])
         logger.warning("No VAEM Connected!!")
@@ -567,8 +565,7 @@ class VAEMBase(ABC):
                 0,
                 VaemControlWords.RESETSTATE.value,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             if self._deconstruct_frame(resp)["errorRet"] == 0:
                 logger.info("Control word cleared successfully")
         else:
@@ -594,15 +591,12 @@ class VAEMBase(ABC):
                 0,
                 VaemControlWords.RESETERRORS.value,
             )
-            frame = self._construct_frame(data)
-            response = self._transfer(frame)
-            if self._deconstruct_frame(response)["errorRet"] == 0:
+            resp = self.send_command(data)
+            if self._deconstruct_frame(resp)["errorRet"] == 0:
                 logger.info("Error cleared successfully")
                 self.clear_control_word()
             else:
-                logger.error(
-                    "Error could not be cleared, error code: %s", self._deconstruct_frame(response)["errorRet"]
-                )
+                logger.error("Error could not be cleared, error code: %s", self._deconstruct_frame(resp)["errorRet"])
         else:
             logger.warning("No VAEM Connected!!")
 
@@ -672,8 +666,7 @@ class VAEMBase(ABC):
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             return self._deconstruct_frame(resp)["transferValue"]
         return None
 
@@ -739,8 +732,7 @@ class VAEMBase(ABC):
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             return self._deconstruct_frame(resp)["transferValue"]
         return None
 
@@ -773,8 +765,7 @@ class VAEMBase(ABC):
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
         return None
 
@@ -807,8 +798,7 @@ class VAEMBase(ABC):
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
         return None
 
@@ -874,8 +864,7 @@ class VAEMBase(ABC):
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
         return None
 
@@ -944,8 +933,7 @@ class VAEMBase(ABC):
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             return self._deconstruct_frame(resp)["transferValue"]
         return None
 
@@ -1013,8 +1001,7 @@ class VAEMBase(ABC):
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
         return None
 
@@ -1109,8 +1096,7 @@ class VAEMBase(ABC):
                 0,
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
+            resp = self.send_command(data)
             return int(not self._deconstruct_frame(resp)["transferValue"])
         return None
 
