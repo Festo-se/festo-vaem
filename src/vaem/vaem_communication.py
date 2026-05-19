@@ -407,11 +407,11 @@ class VAEMBase(ABC):
         if self._init_done:
             # save settings
             if self.error_handling_enabled:
-                data = self._get_transfer_value(
+                data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
                     VaemIndex.CONTROLWORD,
                     0,
-                    VaemControlWords.STARTVALVES.value,
+                    VaemControlWords.STOPVALVES.value,
                 )
                 self.send_command(data)
             else:
@@ -422,6 +422,14 @@ class VAEMBase(ABC):
                     VaemControlWords.STARTVALVESRESETERROR.value,
                 )
                 self.send_command(data)
+
+            data = self.get_transfer_value(
+                VaemAccess.WRITE.value,
+                VaemIndex.CONTROLWORD,
+                0,
+                VaemControlWords.STARTVALVES.value,
+            )
+            self.send_command(data)
             self.clear_control_word()
         else:
             logger.warning("No VAEM Connected!!")
