@@ -511,7 +511,7 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(self._deconstruct_frame(resp)["transferValue"])
+            return int(resp["transferValue"])
         logger.warning("No VAEM Connected!!")
         return None
 
@@ -544,8 +544,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            logger.info(self._get_status(self._deconstruct_frame(resp)["transferValue"]))
-            return self._get_status(self._deconstruct_frame(resp)["transferValue"])
+            logger.info(self._get_status(resp["transferValue"]))
+            return self._get_status(resp["transferValue"])
         logger.warning("No VAEM Connected!!")
         return {}
 
@@ -596,7 +596,7 @@ class VAEMBase(ABC):
                 logger.info("Error cleared successfully")
                 self.clear_control_word()
             else:
-                logger.error("Error could not be cleared, error code: %s", self._deconstruct_frame(resp)["errorRet"])
+                logger.error("Error could not be cleared, error code: %s", resp["errorRet"])
         else:
             logger.warning("No VAEM Connected!!")
 
@@ -667,7 +667,7 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return self._deconstruct_frame(resp)["transferValue"]
+            return resp["transferValue"]
         return None
 
     def set_nominal_voltage(self, valve_id: int, voltage: int) -> None:
@@ -733,7 +733,7 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return self._deconstruct_frame(resp)["transferValue"]
+            return resp["transferValue"]
         return None
 
     def get_valve_switching_time(self, valve_id: int) -> int | None:
@@ -766,7 +766,7 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
+            return int(resp["transferValue"] * 0.2)
         return None
 
     def get_delay_time(self, valve_id: int) -> int | None:
@@ -799,7 +799,7 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
+            return int(resp["transferValue"] * 0.2)
         return None
 
     def set_delay_time(self, valve_id: int, delay_time: int) -> None:
@@ -865,7 +865,7 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
+            return int(resp["transferValue"] * 0.2)
         return None
 
     def set_pickup_time(self, valve_id: int, pickup_time: int) -> None:
@@ -934,7 +934,7 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return self._deconstruct_frame(resp)["transferValue"]
+            return resp["transferValue"]
         return None
 
     def set_holding_current(self, valve_id: int, holding_current: int) -> None:
@@ -1002,7 +1002,7 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
+            return int(resp["transferValue"] * 0.2)
         return None
 
     def set_current_reduction_time(self, valve_id: int, reduction_time: int) -> None:
