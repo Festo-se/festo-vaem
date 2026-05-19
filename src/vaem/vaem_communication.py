@@ -9,6 +9,7 @@ import logging
 import struct
 import time
 import serial
+import atexit
 from abc import ABC, abstractmethod
 
 from pymodbus.client import ModbusBaseSyncClient, ModbusSerialClient, ModbusTcpClient
@@ -58,6 +59,7 @@ class VAEMBase(ABC):
         self._init_done = True
         self.error_handling_enabled = 1
         self.active_valves = [0, 0, 0, 0, 0, 0, 0, 0]
+        atexit.register(self.close_client)
 
     @property
     @abstractmethod
@@ -176,6 +178,16 @@ class VAEMBase(ABC):
             write_data: List of data that will be transferred to VAEM device
         Returns:
             Response from VAEM device.
+        """
+        pass
+
+    @abstractmethod
+    def close_client(self):
+        """
+        Closes the client connection to the VAEM device.
+
+        Returns:
+            None
         """
         pass
 
@@ -1234,6 +1246,26 @@ class VAEMModbusTCP(VAEMBase):
             logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
         return None
 
+    def close_client(self) -> None:
+        """
+        Closes the Modbus TCP client connection.
+
+        Typical usage example:
+            vaem.close_client()
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        try:
+            if self.client and self.client.connected:  # type: ignore[attr-defined, ty:unresolved-attribute]
+                self.client.close()
+                logger.info("Modbus TCP connection closed successfully.")
+        except Exception as error:
+            logger.error("Error occurred while closing Modbus TCP connection: %s", str(error))
+
 
 class VAEMSerial(VAEMBase):
     """Class used as the interface backend for using Serial communication."""
@@ -1382,11 +1414,22 @@ class VAEMSerial(VAEMBase):
             logger.error("Transfer error: %s", str(error))
         return None
 
-    def __del__(self):
-        """Destructor for VAEMSerial class. Closes the serial connection when the object is deleted."""
+    def close_client(self) -> None:
+        """
+        Closes the serial client connection.
+
+        Typical usage example:
+            vaem.close_client()
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         try:
             if self.client and self.client.is_open:
                 self.client.close()
-        except:
-            logger.error("Error occurred while closing serial connection.")
-            pass
+                logger.info("Serial connection closed successfully.")
+        except Exception as error:
+            logger.error("Error occurred while closing serial connection: %s", str(error))
