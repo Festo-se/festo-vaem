@@ -171,12 +171,12 @@ class VAEMBase(ABC):
         pass
 
     @overload
-    def _transfer(self, write_data: list) -> ...: ...
+    def _transfer(self, write_data: list) -> list: ...
     @overload
-    def _transfer(self, write_data: str) -> ...: ...
+    def _transfer(self, write_data: str) -> str: ...
 
     @abstractmethod
-    def _transfer(self, write_data: list | str):
+    def _transfer(self, write_data: list | str) -> list | str:
         """
         Method of transferring information from Python driver to device.
 
@@ -303,6 +303,9 @@ class VAEMBase(ABC):
                     vaemValveIndex[valve_id],
                 )
                 resp = self.send_command(data)
+                if resp is None:
+                    logger.warning("Failed to read select valve status")
+                    return
                 # select new valve
                 data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
@@ -347,6 +350,9 @@ class VAEMBase(ABC):
                     vaemValveIndex[valve_id],
                 )
                 resp = self.send_command(data)
+                if resp is None:
+                    logger.warning("Failed to read select valve status")
+                    return
                 # deselect new valve
                 data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
@@ -510,7 +516,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(resp["transferValue"])
+            if resp is not None:
+                return int(resp["transferValue"])
         logger.warning("No VAEM Connected!!")
         return None
 
@@ -543,8 +550,9 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            logger.info(self._get_status(resp["transferValue"]))
-            return self._get_status(resp["transferValue"])
+            if resp is not None:
+                logger.info(self._get_status(resp["transferValue"]))
+                return self._get_status(resp["transferValue"])
         logger.warning("No VAEM Connected!!")
         return {}
 
@@ -565,7 +573,7 @@ class VAEMBase(ABC):
                 VaemControlWords.RESETSTATE.value,
             )
             resp = self.send_command(data)
-            if resp["errorRet"] == 0:
+            if resp is not None and resp["errorRet"] == 0:
                 logger.info("Control word cleared successfully")
         else:
             logger.warning("No VAEM Connected!!")
@@ -591,11 +599,12 @@ class VAEMBase(ABC):
                 VaemControlWords.RESETERRORS.value,
             )
             resp = self.send_command(data)
-            if resp["errorRet"] == 0:
-                logger.info("Error cleared successfully")
-                self.clear_control_word()
-            else:
-                logger.error("Error could not be cleared, error code: %s", resp["errorRet"])
+            if resp is not None:
+                if resp["errorRet"] == 0:
+                    logger.info("Error cleared successfully")
+                    self.clear_control_word()
+                else:
+                    logger.error("Error could not be cleared, error code: %s", resp["errorRet"])
         else:
             logger.warning("No VAEM Connected!!")
 
@@ -666,7 +675,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return resp["transferValue"]
+            if resp is not None:
+                return resp["transferValue"]
         return None
 
     def set_nominal_voltage(self, valve_id: int, voltage: int) -> None:
@@ -732,7 +742,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return resp["transferValue"]
+            if resp is not None:
+                return resp["transferValue"]
         return None
 
     def get_valve_switching_time(self, valve_id: int) -> int | None:
@@ -765,7 +776,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(resp["transferValue"] * 0.2)
+            if resp is not None:
+                return int(resp["transferValue"] * 0.2)
         return None
 
     def get_delay_time(self, valve_id: int) -> int | None:
@@ -798,7 +810,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(resp["transferValue"] * 0.2)
+            if resp is not None:
+                return int(resp["transferValue"] * 0.2)
         return None
 
     def set_delay_time(self, valve_id: int, delay_time: int) -> None:
@@ -864,7 +877,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(resp["transferValue"] * 0.2)
+            if resp is not None:
+                return int(resp["transferValue"] * 0.2)
         return None
 
     def set_pickup_time(self, valve_id: int, pickup_time: int) -> None:
@@ -933,7 +947,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return resp["transferValue"]
+            if resp is not None:
+                return resp["transferValue"]
         return None
 
     def set_holding_current(self, valve_id: int, holding_current: int) -> None:
@@ -1001,7 +1016,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(resp["transferValue"] * 0.2)
+            if resp is not None:
+                return int(resp["transferValue"] * 0.2)
         return None
 
     def set_current_reduction_time(self, valve_id: int, reduction_time: int) -> None:
@@ -1096,7 +1112,8 @@ class VAEMBase(ABC):
                 0,
             )
             resp = self.send_command(data)
-            return int(not resp["transferValue"])
+            if resp is not None:
+                return int(not resp["transferValue"])
         return None
 
 
@@ -1206,7 +1223,7 @@ class VAEMModbusTCP(VAEMBase):
 
         return data
 
-    def _transfer(self, write_data: list):
+    def _transfer(self, write_data: list):  # type: ignore
         """
         Method of transferring information from Python driver to device.
 
@@ -1215,7 +1232,7 @@ class VAEMModbusTCP(VAEMBase):
         Returns:
             Response from VAEM device.
         """
-        if not self.client.connected:  # type: ignore[attr-defined, ty:unresolved-attribute]
+        if not self.client.connected:  # type: ignore[attr-defined]
             self.client.connect()
         try:
             data = self.client.readwrite_registers(  # type: ignore[missing-argument]
@@ -1229,7 +1246,7 @@ class VAEMModbusTCP(VAEMBase):
             return data.registers
         except ModbusException as modbus_error:
             logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
-        return None
+        return []  # type: ignore[return-value]
 
     def close_client(self) -> None:
         """
@@ -1245,7 +1262,7 @@ class VAEMModbusTCP(VAEMBase):
             None
         """
         try:
-            if self.client and self.client.connected:  # type: ignore[attr-defined, ty:unresolved-attribute]
+            if self.client and self.client.connected:  # type: ignore[attr-defined]
                 self.client.close()
                 logger.info("Modbus TCP connection closed successfully.")
         except Exception as error:
@@ -1380,7 +1397,7 @@ class VAEMSerial(VAEMBase):
         return data
         """
 
-    def _transfer(self, write_data: str):
+    def _transfer(self, write_data: str) -> str:  # type: ignore
         """
         Method of transferring information from Python driver to device.
 
@@ -1399,7 +1416,7 @@ class VAEMSerial(VAEMBase):
             return response.decode("ascii")
         except Exception as error:
             logger.error("Transfer error: %s", str(error))
-        return None
+        return ""  # type: ignore[return-value]
 
     def close_client(self) -> None:
         """
