@@ -171,9 +171,12 @@ class VAEMBase(ABC):
         pass
 
     @overload
-    def _transfer(self, write_data: list) -> list: ...
+    def _transfer(self, write_data: list) -> list:
+        pass
+
     @overload
-    def _transfer(self, write_data: str) -> str: ...
+    def _transfer(self, write_data: str) -> str:
+        pass
 
     @abstractmethod
     def _transfer(self, write_data: list | str) -> list | str:
