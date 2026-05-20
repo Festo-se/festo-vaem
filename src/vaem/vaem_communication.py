@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException, ModbusIOException
+from typing import overload
 
 from .vaem_config import VAEMConfig, VAEMSerialConfig, VAEMTCPConfig
 from .vaem_helper import (
@@ -168,6 +169,11 @@ class VAEMBase(ABC):
             data: dictionary that contains the information from the dataframe.
         """
         pass
+
+    @overload
+    def _transfer(self, write_data: list) -> ...: ...
+    @overload
+    def _transfer(self, write_data: str) -> ...: ...
 
     @abstractmethod
     def _transfer(self, write_data: list | str):
