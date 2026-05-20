@@ -12,7 +12,7 @@ import serial
 import atexit
 from abc import ABC, abstractmethod
 
-from pymodbus.client import ModbusBaseSyncClient, ModbusSerialClient, ModbusTcpClient
+from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException, ModbusIOException
 
 from .vaem_config import VAEMConfig, VAEMSerialConfig, VAEMTCPConfig
