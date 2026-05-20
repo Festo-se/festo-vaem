@@ -1311,8 +1311,8 @@ class VAEMSerial(VAEMBase):
             value (serial.Serial): The Serial client to set
         """
         if not isinstance(value, serial.Serial):
-            raise TypeError(f"Expected serial.Serial, got {type(value)}")
             logging.error("Error: Expected serial.Serial, got %s", type(value))
+            raise TypeError(f"Expected serial.Serial, got {type(value)}")
         self._client = value
 
     def _construct_frame(self, data: dict) -> str:
