@@ -262,6 +262,7 @@ class VAEMBase(ABC):
         Returns:
             None
         """
+        data = {}
         if self._init_done:
             # save settings
             data["access"] = VaemAccess.WRITE.value
