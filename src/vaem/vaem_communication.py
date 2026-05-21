@@ -1387,18 +1387,6 @@ class VAEMSerial(VAEMBase):
                 logger.info("Returned Value: %s", data["transferValue"])
         logger.info("Returned error: %s", data["errorRet"])
         return data
-        """
-        index_position = payload.find("I")
-        sub_index_position = payload.find("S")
-        value_position = payload.find("V")
-
-        data["access"] = command[0]
-        data["dataType"] = command[1:]
-        data["paramIndex"] = int(payload[index_position + 1 : sub_index_position])
-        data["paramSubIndex"] = int(payload[sub_index_position + 1 : value_position])
-        data["transferValue"] = int(payload[value_position + 1 :])
-        return data
-        """
 
     def _transfer(self, write_data: str) -> str:  # type: ignore
         """
