@@ -62,7 +62,7 @@ class VaemIndex(IntEnum):
         SWITCHINGTIME (0x07): Switching Time
         PICKUPTIME (0x08): Pick Up Time
         OPERATINGMODE (0x09): Operating Mode
-        SAVEPARAMETERS (0x11): Save Parameters
+        SAVEPARAMETERS (0x0B): Save Parameters
         SELECTVALVE (0x13): Select Valve
         TIMEDELAY (0x16): Time Delay
         ERRORHANDLING (0x2D): Activate or Deactivate Error Handling

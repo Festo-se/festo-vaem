@@ -112,7 +112,7 @@ class VAEMBase(ABC):
                 out["dataType"] = VaemDataType.UINT8.value
                 out["paramSubIndex"] = 0
                 out["transferValue"] = sub_index
-            case 0x01 | 0x02 | 0x04 | 0x05 | 0x06 | 0x11:
+            case 0x01 | 0x02 | 0x04 | 0x05 | 0x06 | 0x0B:
                 pass
             case _:
                 logger.error("Currently unsupported input param")
