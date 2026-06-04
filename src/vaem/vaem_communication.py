@@ -1398,7 +1398,7 @@ class VAEMSerial(VAEMBase):
             Response from VAEM device.
         """
         try:
-            print("BYTES: ", list(write_data.encode("ascii")))
+            logger.debug("BYTES: ", list(write_data.encode("ascii")))
             self.client.reset_input_buffer()
             self.client.write(write_data.encode("ascii"))
             self.client.flush()
