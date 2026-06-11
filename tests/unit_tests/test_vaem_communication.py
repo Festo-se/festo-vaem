@@ -97,12 +97,7 @@ class TestVAEMModbusClientGetTransferValue:
     def test_get_transfer_value_read_operation(self, vaem_tcp_backend):
         """Test generating transfer value for read operation."""
         backend = vaem_tcp_backend
-        result = backend.get_transfer_value(
-            VaemAccess.READ.value,
-            VaemIndex.STATUSWORD,
-            0,
-            0
-        )
+        result = backend.get_transfer_value(VaemAccess.READ.value, VaemIndex.STATUSWORD, 0, 0)
         assert result["access"] == VaemAccess.READ.value
         assert result["paramIndex"] == VaemIndex.STATUSWORD.value
         assert result["transferValue"] == 0
@@ -110,12 +105,7 @@ class TestVAEMModbusClientGetTransferValue:
     def test_get_transfer_value_write_operation(self, vaem_tcp_backend):
         """Test generating transfer value for write operation."""
         backend = vaem_tcp_backend
-        result = backend.get_transfer_value(
-            VaemAccess.WRITE.value,
-            VaemIndex.INRUSHCURRENT,
-            0,
-            150
-        )
+        result = backend.get_transfer_value(VaemAccess.WRITE.value, VaemIndex.INRUSHCURRENT, 0, 150)
         assert result["access"] == VaemAccess.WRITE.value
         assert result["paramIndex"] == VaemIndex.INRUSHCURRENT.value
         assert result["transferValue"] == 150
@@ -123,23 +113,13 @@ class TestVAEMModbusClientGetTransferValue:
     def test_get_transfer_value_uint32_datatype(self, vaem_tcp_backend):
         """Test transfer value with UINT32 data type."""
         backend = vaem_tcp_backend
-        result = backend.get_transfer_value(
-            VaemAccess.READ.value,
-            VaemIndex.SWITCHINGTIME,
-            0,
-            0
-        )
+        result = backend.get_transfer_value(VaemAccess.READ.value, VaemIndex.SWITCHINGTIME, 0, 0)
         assert result["dataType"] == VaemDataType.UINT32.value
 
     def test_get_transfer_value_uint8_datatype(self, vaem_tcp_backend):
         """Test transfer value with UINT8 data type."""
         backend = vaem_tcp_backend
-        result = backend.get_transfer_value(
-            VaemAccess.WRITE.value,
-            VaemIndex.OPERATINGMODE,
-            0,
-            1
-        )
+        result = backend.get_transfer_value(VaemAccess.WRITE.value, VaemIndex.OPERATINGMODE, 0, 1)
         assert result["dataType"] == VaemDataType.UINT8.value
 
     def test_get_transfer_value_select_valve(self, vaem_tcp_backend):
@@ -149,7 +129,7 @@ class TestVAEMModbusClientGetTransferValue:
             VaemAccess.WRITE.value,
             VaemIndex.SELECTVALVE,
             1,  # valve index
-            0
+            0,
         )
         assert result["paramIndex"] == VaemIndex.SELECTVALVE.value
         assert result["transferValue"] == 1
@@ -413,19 +393,19 @@ class TestVAEMModbusClientComplexOperations:
     def test_configure_single_valve_sequence(self, vaem_tcp_mock):
         """Test configuring a single valve with multiple parameters."""
         backend = vaem_tcp_mock._backend
-        
+
         valve_id = 1
         backend.set_nominal_voltage(valve_id=valve_id, voltage=12000)
         backend.set_inrush_current(valve_id=valve_id, inrush_current=150)
         backend.set_holding_current(valve_id=valve_id, holding_current=100)
         backend.set_valve_switching_time(valve_id=valve_id, opening_time=100)
-        
+
         # Verify we can read back the values
         voltage = backend.get_nominal_voltage(valve_id=valve_id)
         current = backend.get_inrush_current(valve_id=valve_id)
         holding = backend.get_holding_current(valve_id=valve_id)
         switching = backend.get_valve_switching_time(valve_id=valve_id)
-        
+
         assert voltage is not None
         assert current is not None
         assert holding is not None
@@ -434,24 +414,24 @@ class TestVAEMModbusClientComplexOperations:
     def test_full_valve_operation_sequence(self, vaem_tcp_mock):
         """Test a complete sequence of valve operations."""
         backend = vaem_tcp_mock._backend
-        
+
         # Get initial status
         status = backend.get_status()
         assert status is not None
-        
+
         # Configure valve
         backend.set_nominal_voltage(valve_id=1, voltage=12000)
         backend.select_valve(valve_id=1)
-        
+
         # Open valve
         backend.open_selected_valves()
-        
+
         # Close valve
         backend.close_valves()
-        
+
         # Deselect valve
         backend.deselect_valve(valve_id=1)
-        
+
         # Get final status
         final_status = backend.get_status()
         assert final_status is not None
@@ -459,7 +439,7 @@ class TestVAEMModbusClientComplexOperations:
     def test_multiple_valves_configuration(self, vaem_tcp_mock):
         """Test configuring multiple valves."""
         backend = vaem_tcp_mock._backend
-        
+
         for valve_id in range(1, 9):
             backend.set_nominal_voltage(valve_id=valve_id, voltage=11000)
             backend.set_inrush_current(valve_id=valve_id, inrush_current=110)
@@ -468,34 +448,34 @@ class TestVAEMModbusClientComplexOperations:
     def test_error_handling_workflow(self, vaem_tcp_mock):
         """Test error handling workflow."""
         backend = vaem_tcp_mock._backend
-        
+
         # Get initial error status
         status = backend.get_error_handling_status()
         assert status == 1
-        
+
         # Disable error handling
         backend.set_error_handling(activate=0)
-        
+
         # Clear any errors
         backend.clear_error()
-        
+
         # Re-enable error handling
         backend.set_error_handling(activate=1)
 
     def test_save_and_retrieve_settings(self, vaem_tcp_mock):
         """Test saving settings and retrieving them."""
         backend = vaem_tcp_mock._backend
-        
+
         # Set parameters
         backend.set_nominal_voltage(valve_id=1, voltage=12000)
         backend.set_inrush_current(valve_id=1, inrush_current=150)
-        
+
         # Save settings
         backend.save_settings()
-        
+
         # Retrieve settings
         voltage = backend.get_nominal_voltage(valve_id=1)
         current = backend.get_inrush_current(valve_id=1)
-        
+
         assert voltage == 12000
         assert current == 150

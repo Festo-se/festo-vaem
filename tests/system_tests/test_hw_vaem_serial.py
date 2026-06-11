@@ -451,7 +451,7 @@ class TestVAEMSerialPickupTime:
     def test_set_pickup_time_all_valves(self, vaem_device):
         """Test setting pickup time for all valves."""
         for valve_id in range(1, 9):
-            pickup_time = (valve_id * 8)  # Vary pickup per valve for verification
+            pickup_time = valve_id * 8  # Vary pickup per valve for verification
             vaem_device.set_pickup_time(valve_id, pickup_time)
             time.sleep(0.05)  # Brief delay for device to process
 

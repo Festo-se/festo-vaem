@@ -49,12 +49,7 @@ class TestVAEMTCPConfig:
 
     def test_tcp_config_full(self):
         """Test creating TCP config with all parameters."""
-        config = VAEMTCPConfig(
-            interface="tcp/ip",
-            ip="192.168.1.100",
-            port=5020,
-            unit_id=2
-        )
+        config = VAEMTCPConfig(interface="tcp/ip", ip="192.168.1.100", port=5020, unit_id=2)
         assert config.interface == "tcp/ip"
         assert config.ip == "192.168.1.100"
         assert config.port == 5020
@@ -98,11 +93,7 @@ class TestVAEMTCPConfig:
     def test_tcp_config_unit_ids(self):
         """Test TCP config with various unit IDs."""
         for unit_id in [1, 2, 4, 8, 16, 247]:
-            config = VAEMTCPConfig(
-                interface="tcp/ip",
-                ip="192.168.0.1",
-                unit_id=unit_id
-            )
+            config = VAEMTCPConfig(interface="tcp/ip", ip="192.168.0.1", unit_id=unit_id)
             assert config.unit_id == unit_id
 
     def test_tcp_config_inheritance_from_vaem_config(self):
@@ -137,12 +128,7 @@ class TestVAEMSerialConfig:
 
     def test_serial_config_full(self):
         """Test creating Serial config with all parameters."""
-        config = VAEMSerialConfig(
-            interface="serial",
-            com_port="COM5",
-            baudrate=19200,
-            unit_id=3
-        )
+        config = VAEMSerialConfig(interface="serial", com_port="COM5", baudrate=19200, unit_id=3)
         assert config.interface == "serial"
         assert config.com_port == "COM5"
         assert config.baudrate == 19200
@@ -167,33 +153,20 @@ class TestVAEMSerialConfig:
         """Test Serial config with various COM port designations."""
         com_ports = ["COM1", "COM3", "COM5", "COM8", "COM10", "/dev/ttyUSB0"]
         for com_port in com_ports:
-            config = VAEMSerialConfig(
-                interface="serial",
-                com_port=com_port,
-                baudrate=9600
-            )
+            config = VAEMSerialConfig(interface="serial", com_port=com_port, baudrate=9600)
             assert config.com_port == com_port
 
     def test_serial_config_various_baudrates(self):
         """Test Serial config with standard baudrates."""
         baudrates = [9600, 19200, 38400, 57600, 115200]
         for baudrate in baudrates:
-            config = VAEMSerialConfig(
-                interface="serial",
-                com_port="COM3",
-                baudrate=baudrate
-            )
+            config = VAEMSerialConfig(interface="serial", com_port="COM3", baudrate=baudrate)
             assert config.baudrate == baudrate
 
     def test_serial_config_unit_ids(self):
         """Test Serial config with various unit IDs."""
         for unit_id in [1, 2, 4, 8, 16, 247]:
-            config = VAEMSerialConfig(
-                interface="serial",
-                com_port="COM3",
-                baudrate=9600,
-                unit_id=unit_id
-            )
+            config = VAEMSerialConfig(interface="serial", com_port="COM3", baudrate=9600, unit_id=unit_id)
             assert config.unit_id == unit_id
 
     def test_serial_config_inheritance_from_vaem_config(self):
@@ -250,19 +223,15 @@ class TestConfigUsagePatterns:
         config1 = VAEMTCPConfig(interface="tcp/ip", ip="192.168.0.10")
         config2 = VAEMTCPConfig(interface="tcp/ip", ip="192.168.0.20")
         config3 = VAEMTCPConfig(interface="tcp/ip", ip="192.168.0.30")
-        
+
         assert config1.ip != config2.ip
         assert config2.ip != config3.ip
 
     def test_creating_configs_with_default_and_custom_values(self):
         """Test mixing default and custom values in configs."""
         config_default_port = VAEMTCPConfig(interface="tcp/ip", ip="192.168.0.1")
-        config_custom_port = VAEMTCPConfig(
-            interface="tcp/ip",
-            ip="192.168.0.1",
-            port=5020
-        )
-        
+        config_custom_port = VAEMTCPConfig(interface="tcp/ip", ip="192.168.0.1", port=5020)
+
         assert config_default_port.port == 502
         assert config_custom_port.port == 5020
 
@@ -276,11 +245,8 @@ class TestConfigUsagePatterns:
     def test_creating_serial_config_collection(self):
         """Test creating a collection of serial configs."""
         com_ports = ["COM1", "COM3", "COM5"]
-        configs = [
-            VAEMSerialConfig(interface="serial", com_port=port, baudrate=9600)
-            for port in com_ports
-        ]
-        
+        configs = [VAEMSerialConfig(interface="serial", com_port=port, baudrate=9600) for port in com_ports]
+
         assert len(configs) == 3
         assert configs[0].com_port == "COM1"
         assert configs[1].com_port == "COM3"

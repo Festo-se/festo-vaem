@@ -503,7 +503,7 @@ class TestVAEMHardwareHoldingCurrent:
         # Should not raise an exception
         vaem_device.set_holding_current(valve_id, holding_current)
         time.sleep(0.1)  # Brief delay for device to process
-        
+
         retrieved_current = vaem_device.get_holding_current(valve_id)
         assert retrieved_current == holding_current, f"Expected {holding_current}, got {retrieved_current}"
 
@@ -513,9 +513,11 @@ class TestVAEMHardwareHoldingCurrent:
             holding_current = 150 + (valve_id * 3)  # Vary current per valve for verification
             vaem_device.set_holding_current(valve_id, holding_current)
             time.sleep(0.05)  # Brief delay for device to process
-            
+
             retrieved_current = vaem_device.get_holding_current(valve_id)
-            assert retrieved_current == holding_current, f"Valve {valve_id}: Expected {holding_current}, got {retrieved_current}"
+            assert retrieved_current == holding_current, (
+                f"Valve {valve_id}: Expected {holding_current}, got {retrieved_current}"
+            )
 
     def test_get_holding_current(self, vaem_device):
         """Test getting holding current for a valve."""
@@ -536,7 +538,7 @@ class TestVAEMHardwareHoldingCurrent:
         min_current = 20
         vaem_device.set_holding_current(valve_id, min_current)
         time.sleep(0.1)  # Brief delay for device to process
-        
+
         retrieved_current = vaem_device.get_holding_current(valve_id)
         assert retrieved_current == min_current, f"Expected minimum {min_current}, got {retrieved_current}"
 
@@ -546,7 +548,7 @@ class TestVAEMHardwareHoldingCurrent:
         max_current = 400
         vaem_device.set_holding_current(valve_id, max_current)
         time.sleep(0.1)  # Brief delay for device to process
-        
+
         retrieved_current = vaem_device.get_holding_current(valve_id)
         assert retrieved_current == max_current, f"Expected maximum {max_current}, got {retrieved_current}"
 

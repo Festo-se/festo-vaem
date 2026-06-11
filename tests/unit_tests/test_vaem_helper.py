@@ -240,7 +240,7 @@ class TestVaemValveIndex:
     def test_vaem_valve_index_valve_values(self):
         """Test valve index values are correct powers of 2."""
         for i, valve_id in enumerate(range(1, 9)):
-            expected_value = 2 ** i
+            expected_value = 2**i
             assert vaemValveIndex[valve_id] == expected_value
 
     def test_vaem_valve_index_specific_values(self):
@@ -319,9 +319,7 @@ class TestHelperIntegration:
 
     def test_control_words_for_operations(self):
         """Test control words can be combined for complex operations."""
-        start_and_reset = (
-            VaemControlWords.STARTVALVES.value | VaemControlWords.RESETERRORS.value
-        )
+        start_and_reset = VaemControlWords.STARTVALVES.value | VaemControlWords.RESETERRORS.value
         assert start_and_reset == 0x09
 
     def test_operating_modes_for_device_configuration(self):
