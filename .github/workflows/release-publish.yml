@@ -33,7 +33,7 @@ jobs:
       contents: write
     steps:
       - name: Setup | Checkout Repository on Release Branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref_name }}
       - name: Install uv
@@ -57,7 +57,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
