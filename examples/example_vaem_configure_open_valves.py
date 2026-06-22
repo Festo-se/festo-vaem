@@ -10,7 +10,7 @@ configure_logging(verbose=True, silence=["pymodbus.logging"])
 ip = getenv("VAEM_IP", "192.168.0.1")
 
 """Create a VAEM instance with TCP/IP configuration"""
-vaem_config = VAEMTCPConfig(interface="tcp/ip", ip=ip, port=502)
+vaem_config = VAEMTCPConfig(ip=ip, port=502)
 """Initialize the VAEM device"""
 vaem = VAEM(config=vaem_config)
 
