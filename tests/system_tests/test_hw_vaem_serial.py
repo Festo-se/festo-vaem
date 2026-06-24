@@ -52,7 +52,7 @@ def vaem_device():
     try:
         if hasattr(vaem._backend, "client") and vaem._backend.client:
             vaem._backend.client.close()
-            time.sleep(1.0)  # Give the OS time to release the port
+            time.sleep(0.1)  # Give the OS time to release the port
     except Exception:
         pass  # Ignore errors during cleanup
 

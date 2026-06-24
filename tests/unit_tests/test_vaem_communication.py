@@ -6,7 +6,8 @@ including frame construction/deconstruction and device operations.
 """
 
 import pytest
-from vaem.vaem_communication import VAEMModbusTCP
+from pymodbus.exceptions import ModbusException
+from vaem.vaem_communication import VAEMModbusTCP, VAEMSerial
 from vaem.vaem_helper import VaemIndex, VaemDataType, VaemAccess
 
 
@@ -84,11 +85,33 @@ class TestVAEMModbusClientFrameDeconstruction:
         assert data["transferValue"] is not None
 
     def test_deconstruct_frame_none_input(self, vaem_tcp_backend):
-        """Test frame deconstruction with None input."""
+        """Test frame deconstruction with None input returns None."""
         backend = vaem_tcp_backend
         data = backend._deconstruct_frame(None)
-        assert isinstance(data, dict)
-        assert data == {}
+        assert data is None
+
+    def test_deconstruct_frame_empty_list_input(self, vaem_tcp_backend):
+        """Test frame deconstruction with an empty frame returns None."""
+        backend = vaem_tcp_backend
+        data = backend._deconstruct_frame([])
+        assert data is None
+
+
+class TestVAEMModbusClientFailedTransfer:
+    """Test that a failed transfer surfaces as None rather than crashing callers."""
+
+    def test_send_command_returns_none_on_transfer_failure(self, vaem_tcp_backend):
+        """Test send_command returns None when the Modbus transfer fails."""
+        backend = vaem_tcp_backend
+        backend.client.readwrite_registers.side_effect = ModbusException("connection lost")
+        data = backend.get_transfer_value(VaemAccess.READ.value, VaemIndex.STATUSWORD, 0, 0)
+        assert backend.send_command(data) is None
+
+    def test_getter_returns_none_on_transfer_failure(self, vaem_tcp_backend):
+        """Test a getter returns None (no KeyError) when the transfer fails."""
+        backend = vaem_tcp_backend
+        backend.client.readwrite_registers.side_effect = ModbusException("connection lost")
+        assert backend.get_inrush_current(valve_id=1) is None
 
 
 class TestVAEMModbusClientGetTransferValue:
@@ -479,3 +502,94 @@ class TestVAEMModbusClientComplexOperations:
 
         assert voltage == 12000
         assert current == 150
+
+
+class TestVAEMSerialRegexParsing:
+    """Test regex-based ASCII frame formatting and parsing for serial backend."""
+
+    def _make_serial_backend(self) -> VAEMSerial:
+        """Create a VAEMSerial instance without running constructor side-effects."""
+        return object.__new__(VAEMSerial)
+
+    def test_list_to_ascii_write_valid(self):
+        """Build a valid write telegram from tokenized input."""
+        backend = self._make_serial_backend()
+        command = ["W","U", "32", ":", "I", 7, "S", 1, "V", 1000, "\r"]
+
+        encoded = backend._list_to_ascii(command)
+
+        assert encoded == "WU32:I7S1V1000\r"
+
+    def test_list_to_ascii_read_valid(self):
+        """Build a valid read telegram from tokenized input."""
+        backend = self._make_serial_backend()
+        command = ["R","U", "16", ":", "I", 2, "S", 0, "\r"]
+
+        encoded = backend._list_to_ascii(command)
+
+        assert encoded == "RU16:I2S0\r"
+
+    def test_list_to_ascii_invalid_raises_value_error(self):
+        """Raise ValueError for malformed command syntax."""
+        backend = self._make_serial_backend()
+
+        with pytest.raises(ValueError):
+            backend._list_to_ascii(["INVALID"])
+
+    def test_ascii_to_list_read_response_valid(self):
+        """Parse a read response telegram using regex named groups."""
+        backend = self._make_serial_backend()
+
+        response = backend._ascii_to_list("RU16:I2S0E0V255\r\n")
+
+        # groupdict layout: ["R", "U", dtype, ":", "I", index, "S", subindex, "E", error, "V", value]
+        assert response == ["R", "U", "16", ":", "I", "2", "S", "0", "E", "0", "V", "255"]
+
+    def test_ascii_to_list_write_response_valid(self):
+        """Parse a write response telegram using regex named groups."""
+        backend = self._make_serial_backend()
+
+        response = backend._ascii_to_list("WU32:I7S1E0\r")
+
+        # groupdict layout: ["W", "U", dtype, ":", "I", index, "S", subindex, "E", error]
+        assert response == ["W", "U", "32", ":", "I", "7", "S", "1", "E", "0"]
+
+    def test_deconstruct_frame_read_response(self):
+        """Parse read response into expected dictionary fields."""
+        backend = self._make_serial_backend()
+
+        tokens = backend._ascii_to_list("RU16:I2S0E0V255")
+        parsed = backend._deconstruct_frame(tokens)
+
+        assert parsed["access"] == VaemAccess.READ.value
+        assert parsed["errorRet"] == 0
+        assert parsed["transferValue"] == 255
+
+    def test_deconstruct_frame_write_response(self):
+        """Parse write response into expected dictionary fields."""
+        backend = self._make_serial_backend()
+
+        tokens = backend._ascii_to_list("WU32:I7S1E96")
+        parsed = backend._deconstruct_frame(tokens)
+
+        assert parsed["access"] == VaemAccess.WRITE.value
+        assert parsed["errorRet"] == 96
+
+    def test_deconstruct_frame_invalid_raises_value_error(self):
+        """Raise ValueError when response does not match known grammar."""
+        backend = self._make_serial_backend()
+
+        with pytest.raises(ValueError):
+            backend._deconstruct_frame("nonsense")
+
+    def test_deconstruct_frame_empty_list_returns_none(self):
+        """Return None when an empty frame is received."""
+        backend = self._make_serial_backend()
+
+        assert backend._deconstruct_frame([]) is None
+
+    def test_deconstruct_frame_none_returns_none(self):
+        """Return None when a None frame is received."""
+        backend = self._make_serial_backend()
+
+        assert backend._deconstruct_frame(None) is None

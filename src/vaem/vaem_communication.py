@@ -6,6 +6,7 @@ and abstracting it all from the user.
 """
 
 import logging
+
 import struct
 import time
 import serial
@@ -14,8 +15,6 @@ from abc import ABC, abstractmethod
 
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException, ModbusIOException
-from typing import overload
-
 from .vaem_config import VAEMConfig, VAEMSerialConfig, VAEMTCPConfig
 from .vaem_helper import (
     VaemAccess,
@@ -24,6 +23,7 @@ from .vaem_helper import (
     VaemIndex,
     VaemOperatingMode,
     vaemValveIndex,
+    VAEM_SERIAL_REGEX,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,31 +47,14 @@ class VAEMBase(ABC):
         Returns:
             None
         """
+        self._init_done = False
         self._config = config
-        self.version = None
-        self._read_param = {
-            "address": 0,
-            "length": 0x07,
-        }
-        self._write_param = {
-            "address": 0,
-            "length": 0x07,
-        }
-        self._init_done = True
-        self.error_handling_enabled = 1
+
+        self.error_handling_enabled = 1  # TODO: Make this part of the config
         self.active_valves = [0, 0, 0, 0, 0, 0, 0, 0]
-        atexit.register(self.close_client)
-
-    @property
-    @abstractmethod
-    def client(self):
-        """
-        Abstract property for the client connection.
-
-        Returns:
-            Client connection object
-        """
-        pass
+        # self.active_valves = {i:False for i in range(1,9)} TODO: Change name active_valves to selected_valves
+        # TODO: Add config item for connected_valve_terminals (instead of active_valves -- undoing confusion)
+        atexit.register(self.close_client)  # TODO: Check if this is right
 
     def get_transfer_value(self, operation, index, sub_index=0, transfer_value=None) -> dict:
         """
@@ -86,7 +69,7 @@ class VAEMBase(ABC):
             )
 
         Args:
-            operation: access
+            operation: Operational access type -- Read or Write specifier
             index: Data object index for accessing VAEM register. Must be of type VaemIndex Enum class
             sub_index: Data object sub_index; often, the valve index for the VAEM
             transfer_value: The actual value to be transfered and saved to the index:sub_index pair location on the VAEM
@@ -147,7 +130,7 @@ class VAEMBase(ABC):
         return status
 
     @abstractmethod
-    def _construct_frame(self, data: dict) -> list | str:
+    def _construct_frame(self, data: dict) -> list:
         """
         Constructs data frame for transfer to VAEM device.
 
@@ -159,7 +142,7 @@ class VAEMBase(ABC):
         pass
 
     @abstractmethod
-    def _deconstruct_frame(self, frame) -> dict:
+    def _deconstruct_frame(self, frame) -> dict | None:
         """
         Deconstructs incoming data frame from VAEM device.
 
@@ -170,16 +153,8 @@ class VAEMBase(ABC):
         """
         pass
 
-    @overload
-    def _transfer(self, write_data: list) -> list:
-        pass
-
-    @overload
-    def _transfer(self, write_data: str) -> str:
-        pass
-
     @abstractmethod
-    def _transfer(self, write_data: list | str) -> list | str:
+    def _transfer(self, write_data: list) -> list:
         """
         Method of transferring information from Python driver to device.
 
@@ -217,13 +192,13 @@ class VAEMBase(ABC):
             data: Dictionary of data that will be transferred to VAEM device
 
         Returns:
-            Dictionary of response data from VAEM device or None.
+            Dictionary of response data from VAEM device.
         """
         frame = self._construct_frame(data)
         resp = self._transfer(frame)
         if resp is not None:
-            return self._deconstruct_frame(resp)
-        return None
+            resp = self._deconstruct_frame(resp)
+        return resp
 
     def _vaem_init(self):
         """
@@ -1140,6 +1115,14 @@ class VAEMModbusTCP(VAEMBase):
             ConnectionError: Connection error with device
             ModbusIOException: Error with Modbus connection
         """
+        self._read_param = {
+            "address": 0,
+            "length": 0x07,
+        }
+        self._write_param = {
+            "address": 0,
+            "length": 0x07,
+        }
         super().__init__(config)
         if not isinstance(config, VAEMTCPConfig):
             config_type = type(config)
@@ -1151,32 +1134,13 @@ class VAEMModbusTCP(VAEMBase):
             self._config = config
             self.client = ModbusTcpClient(host=self._config.ip, port=self._config.port)
             self.client.connect()
+            self._init_done = True
             self._vaem_init()
         except ConnectionError as e:
             logger.error("Connection error: %s. ", str(e))
         except ModbusIOException as io_error:
             logger.error("Modbus IO error: %s. ", str(io_error))
             logger.info(self._config)
-
-    @property
-    def client(self) -> ModbusTcpClient:
-        """
-        Get the Modbus TCP client instance.
-
-        Returns:
-            ModbusTcpClient: The TCP client
-        """
-        return self._client
-
-    @client.setter
-    def client(self, value: ModbusTcpClient) -> None:
-        """
-        Set the Modbus TCP client instance.
-
-        Args:
-            value (ModbusTcpClient): The TCP client to set
-        """
-        self._client = value
 
     def _construct_frame(self, data: dict) -> list:
         """
@@ -1204,7 +1168,7 @@ class VAEMModbusTCP(VAEMBase):
             logger.error("Value error: %s. ", str(e))
         return frame
 
-    def _deconstruct_frame(self, frame) -> dict:
+    def _deconstruct_frame(self, frame) -> dict | None:
         """
         Deconstructs incoming data frame from VAEM device.
 
@@ -1214,7 +1178,7 @@ class VAEMModbusTCP(VAEMBase):
             data: dictionary that contains the information from the dataframe.
         """
         data = {}
-        if frame is not None:
+        if frame:
             data["access"] = (frame[0] & 0xFF00) >> 8
             data["dataType"] = frame[0] & 0x00FF
             data["paramIndex"] = frame[1]
@@ -1223,10 +1187,12 @@ class VAEMModbusTCP(VAEMBase):
             data["transferValue"] = 0
             for i in range(4):
                 data["transferValue"] += frame[len(frame) - 1 - i] << (i * 16)
-
+        else:
+            logger.warning("Empty data frame received, potential operation error state detected: %s", frame)
+            return None
         return data
 
-    def _transfer(self, write_data: list):  # type: ignore
+    def _transfer(self, write_data: list) -> list:
         """
         Method of transferring information from Python driver to device.
 
@@ -1235,10 +1201,11 @@ class VAEMModbusTCP(VAEMBase):
         Returns:
             Response from VAEM device.
         """
-        if not self.client.connected:  # type: ignore[attr-defined]
+        data_registers = []
+        if not self.client.connected:
             self.client.connect()
         try:
-            data = self.client.readwrite_registers(  # type: ignore[missing-argument]
+            data = self.client.readwrite_registers(
                 read_address=self._read_param["address"],
                 read_count=self._read_param["length"],
                 write_address=self._write_param["address"],
@@ -1246,10 +1213,11 @@ class VAEMModbusTCP(VAEMBase):
                 device_id=self._config.unit_id,
             )
             time.sleep(0.001)
-            return data.registers
+            data_registers = data.registers
         except ModbusException as modbus_error:
             logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
-        return []  # type: ignore[return-value]
+
+        return data_registers
 
     def close_client(self) -> None:
         """
@@ -1265,7 +1233,7 @@ class VAEMModbusTCP(VAEMBase):
             None
         """
         try:
-            if self.client and self.client.connected:  # type: ignore[attr-defined]
+            if self.client and self.client.connected:
                 self.client.close()
                 logger.info("Modbus TCP connection closed successfully.")
         except Exception as error:
@@ -1292,6 +1260,7 @@ class VAEMSerial(VAEMBase):
             RuntimeError: A runtime error with the serial interface has occurred.
         """
         super().__init__(config)
+        logger.info("Initializing VAEMSerial client")
         if not isinstance(config, VAEMSerialConfig):
             config_type = type(config)
             raise TypeError(
@@ -1300,42 +1269,92 @@ class VAEMSerial(VAEMBase):
             )
         try:
             self._config = config
+            logger.debug(
+                "Opening serial connection on port=%s baudrate=%s",
+                self._config.com_port,
+                self._config.baudrate,
+            )
             self.client = serial.Serial(
                 port=self._config.com_port,
                 baudrate=self._config.baudrate,
                 bytesize=8,
                 parity="N",
                 stopbits=1,
-                timeout=1,
+                timeout=1,  # TODO: comprehensive timeout setting function. Different for modbus and serial backends
             )
+            logger.info("Serial connection established on %s", self._config.com_port)
+            self._init_done = True
             self._vaem_init()
         except RuntimeError as run_err:
             logger.error("Runtime error: %s. ", str(run_err))
 
-    @property
-    def client(self) -> serial.Serial:
+    def _list_to_ascii(self, command_list: list) -> str:
         """
-        Get the Serial client instance.
-
-        Returns:
-            serial.Serial: The Serial client
-        """
-        return self._client
-
-    @client.setter
-    def client(self, value: serial.Serial) -> None:
-        """
-        Set the Serial client instance.
+        Convert command list to an ASCII telegram string and validate syntax.
 
         Args:
-            value (serial.Serial): The Serial client to set
-        """
-        if not isinstance(value, serial.Serial):
-            logging.error("Error: Expected serial.Serial, got %s", type(value))
-            raise TypeError(f"Expected serial.Serial, got {type(value)}")
-        self._client = value
+            command_list (list): Tokenized serial command frame.
 
-    def _construct_frame(self, data: dict) -> str:
+        Returns:
+            str: Validated ASCII telegram command.
+
+        Raises:
+            ValueError: Command list is empty or does not match expected VAEM syntax.
+        """
+        logger.debug("VAEMSerial._list_to_ascii called with command_list=%s", command_list)
+        if not command_list:
+            raise ValueError("Command list cannot be empty")
+        encoded = "".join(str(value) for value in command_list)
+        tx_valid = VAEM_SERIAL_REGEX["tx_write"].match(encoded) or VAEM_SERIAL_REGEX["tx_read"].match(encoded)
+        if not tx_valid:
+            raise ValueError(f"Invalid serial command format: {encoded!r}")
+        logger.debug("ASCII encoded command: %r", encoded)
+        return encoded
+
+    def _ascii_to_list(self, decoded_response_string: str) -> list:
+        """
+        Normalize and validate a serial ASCII response telegram.
+
+        Args:
+            decoded_response_string (str): Decoded response payload from serial interface.
+
+        Returns:
+            list: Tokenized response components (e.g., ["R", "U", "32", ":", "I", "7", "S", "1", "E", "0", "V", "1000"]).
+
+        Raises:
+            ValueError: Response is empty or does not match expected VAEM syntax.
+        """
+        logger.debug("VAEMSerial._ascii_to_list called with response=%r", decoded_response_string)
+        normalized = decoded_response_string.strip()
+        if not normalized:
+            raise ValueError("Empty serial response")
+        message = normalized.splitlines()[0].strip()
+
+        read_match = VAEM_SERIAL_REGEX["rx_read"].match(message)
+        write_match = VAEM_SERIAL_REGEX["rx_write"].match(message)
+        m = read_match if read_match is not None else write_match
+        if m is None:
+            raise ValueError(f"Invalid serial response format: {message!r}")
+        g = m.groupdict()
+        tokens: list = [
+            g["access"],
+            "U",
+            g["data_type"],
+            ":",
+            "I",
+            g["index"],
+            "S",
+            g["subindex"],
+            "E",
+            g["error_code"],
+        ]
+        if g.get("transfer_value") is not None:
+            tokens += ["V", g["transfer_value"]]
+
+        logger.debug("Parsed serial response tokens: %s", tokens)
+        return tokens
+
+    def _construct_frame(self, data: dict) -> list:
         """
         Constructs data frame for transfer to VAEM device.
 
@@ -1344,6 +1363,13 @@ class VAEMSerial(VAEMBase):
         Returns:
             string of values to be passed as the expected data type of the Modbus data frame
         """
+        logger.debug(
+            "VAEMSerial._construct_frame called with access=%s index=%s sub_index=%s data_type=%s",
+            data.get("access"),
+            data.get("paramIndex"),
+            data.get("paramSubIndex"),
+            data.get("dataType"),
+        )
         match data["dataType"]:
             case 1:
                 data["dataType"] = "08"
@@ -1353,61 +1379,123 @@ class VAEMSerial(VAEMBase):
                 data["dataType"] = "32"
             case 4:
                 data["dataType"] = "64"
+            case _:
+                raise ValueError(f"Unspecified data type: {data['dataType']}")
 
         match data["access"]:
             case 0:
-                frame = f"RU{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}\r"
+                frame = [
+                    "R",
+                    "U",
+                    data["dataType"],
+                    ":",
+                    "I",
+                    data["paramIndex"],
+                    "S",
+                    data["paramSubIndex"],
+                    "\r",
+                ]
+            # pattern = "{access:l}U{data_type:d}:I{param_index:d}S{param_sub_index:d}V{transfer_value:d}<CR>"
+            # data_string = "WU32:I7S1V1000<CR>"
+            # parsed = parse(pattern, data_string)
+            # "WU32:I7S1V1000<CR>"
             case 1:
-                frame = f"WU{data['dataType']}:I{data['paramIndex']}S{data['paramSubIndex']}V{data['transferValue']}\r"
+                frame = [
+                    "W",
+                    "U",
+                    data["dataType"],
+                    ":",
+                    "I",
+                    data["paramIndex"],
+                    "S",
+                    data["paramSubIndex"],
+                    "V",
+                    data["transferValue"],
+                    "\r",
+                ]
+            case _:
+                raise ValueError(f"Unknown access type: {data['access']}")
+
+        logger.debug("Constructed serial frame: %s", frame)
         return frame
 
-    def _deconstruct_frame(self, frame: str) -> dict:
+    def _deconstruct_frame(self, frame) -> dict | None:
         """
-        Deconstructs incoming data frame from VAEM device.
+        Deconstructs incoming tokenized data frame from VAEM device.
 
         Args:
-            frame: dict coming in from the device
+            frame (list): Tokenized response components from _ascii_to_list.
+
         Returns:
-            data: dictionary that contains the information from the dataframe.
+            dict: Dictionary containing access, errorRet, and transferValue (if applicable).
+
+        Raises:
+            ValueError: Unable to parse frame or invalid token structure.
         """
+        logger.debug("VAEMSerial._deconstruct_frame called with frame=%r", frame)
         data = {}
-        message = frame.strip()
 
-        command, _ = message.split()
-        return_code_index = command.find("E")
-        match command[1]:
-            case "W":
-                data["access"] = VaemAccess.WRITE.value
-                data["errorRet"] = int(command[return_code_index + 1 :])
-            case "R":
-                transfer_value_index = command.find("V")
-                data["access"] = VaemAccess.READ.value
-                data["errorRet"] = int(command[return_code_index + 1 : transfer_value_index])
-                data["transferValue"] = int(command[transfer_value_index + 1 :])
-                logger.info("Returned Value: %s", data["transferValue"])
-        logger.info("Returned error: %s", data["errorRet"])
-        return data
+        # Frame layout from _ascii_to_list:
+        #   read:  ["R", "U", dtype, ":", "I", index, "S", subindex, "E", error, "V", value]  (len 12)
+        #   write: ["W", "U", dtype, ":", "I", index, "S", subindex, "E", error]              (len 10)
+        if not frame:
+            logger.warning("Empty data frame received, potential operation error state detected: %s", frame)
+            return None
 
-    def _transfer(self, write_data: str) -> str:  # type: ignore
+        if not isinstance(frame, list) or len(frame) < 10:
+            raise ValueError(f"Unable to parse serial frame: {frame!r}")
+
+        access_field = frame[0]  # "R" or "W"
+        error_code = int(frame[9])
+
+        if access_field == "R" and len(frame) == 12:
+            data["access"] = VaemAccess.READ.value
+            data["errorRet"] = error_code
+            data["transferValue"] = int(frame[11])
+            logger.info("Returned Value: %s", data["transferValue"])
+            logger.info("Returned error: %s", data["errorRet"])
+            return data
+
+        if access_field == "W" and len(frame) == 10:
+            data["access"] = VaemAccess.WRITE.value
+            data["errorRet"] = error_code
+            logger.debug("Parsed write response with errorRet=%s", data["errorRet"])
+            logger.info("Returned error: %s", data["errorRet"])
+            return data
+
+        raise ValueError(f"Unable to parse serial frame: {frame!r}")
+
+    def _transfer(self, write_data: list) -> list:
         """
         Method of transferring information from Python driver to device.
 
         Args:
-            write_data: String of data that will be transferred to VAEM device
+            write_data: List of data that will be transferred to VAEM device
         Returns:
             Response from VAEM device.
         """
+        parsed = []
+        logger.debug("VAEMSerial._transfer called with write_data=%s", write_data)
         try:
-            logger.debug("BYTES: ", list(write_data.encode("ascii")))
+            encoded = self._list_to_ascii(write_data)
+            logger.debug("BYTES: %s", list(encoded))
+
             self.client.reset_input_buffer()
-            self.client.write(write_data.encode("ascii"))
+            logger.debug("Serial input buffer cleared")
+
+            bytes_written = self.client.write(encoded.encode("ascii"))
+            logger.debug(f"Serial write returned code: {bytes_written}")
             self.client.flush()
+            logger.debug("Serial bytes written and flushed")
             response = self.client.readall()
             time.sleep(0.001)
-            return response.decode("ascii")
+            decoded = response.decode("ascii")
+            logger.debug("Decoded serial response: %r", decoded)
+            parsed = self._ascii_to_list(decoded)
+            logger.debug("Parsed serial response: %s", parsed)
         except Exception as error:
             logger.error("Transfer error: %s", str(error))
-        return ""  # type: ignore[return-value]
+        return parsed
 
     def close_client(self) -> None:
         """
@@ -1422,9 +1510,12 @@ class VAEMSerial(VAEMBase):
         Returns:
             None
         """
+        logger.debug("VAEMSerial.close_client called")
         try:
             if self.client and self.client.is_open:
                 self.client.close()
                 logger.info("Serial connection closed successfully.")
+            else:
+                logger.debug("Serial connection already closed or not initialized")
         except Exception as error:
             logger.error("Error occurred while closing serial connection: %s", str(error))

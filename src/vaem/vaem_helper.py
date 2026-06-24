@@ -4,6 +4,7 @@ Helper functions for VAEM driver.
 For further reference, see the VAEM documentation found at the Product Page or Operation Instructions.
 """
 
+import re
 from enum import IntEnum
 
 vaemValveIndex = {
@@ -116,3 +117,28 @@ class VaemOperatingMode(IntEnum):
     OPMODE1 = 0x00
     OPMODE2 = 0x01
     OPMODE3 = 0x02
+
+
+VAEM_SERIAL_PATTERNS = {
+    "tx_write": (
+        r"^(?P<access>W)U(?P<data_type>08|16|32|64)"
+        r":I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*)"
+        r"V(?P<transfer_value>0|[1-9]\d*)\r?$"
+    ),
+    "tx_read": (
+        r"^(?P<access>R)U(?P<data_type>08|16|32|64)"
+        r":I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*)\r?$"
+    ),
+    "rx_write": (
+        r"^R?(?P<access>W)U(?P<data_type>08|16|32|64)"
+        r":I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*)"
+        r"E(?P<error_code>0|[1-9]\d*)\r?$"
+    ),
+    "rx_read": (
+        r"^R?(?P<access>R)U(?P<data_type>08|16|32|64)"
+        r":I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*)"
+        r"E(?P<error_code>0|[1-9]\d*)V(?P<transfer_value>0|[1-9]\d*)\r?$"
+    ),
+}
+
+VAEM_SERIAL_REGEX = {name: re.compile(pattern) for name, pattern in VAEM_SERIAL_PATTERNS.items()}
