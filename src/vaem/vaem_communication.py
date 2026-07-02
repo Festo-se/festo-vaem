@@ -1243,7 +1243,41 @@ class VAEMModbusTCP(VAEMBase):
 class VAEMSerial(VAEMBase):
     """Class used as the interface backend for using Serial communication."""
 
-    client: serial.Serial
+    class EfficientSerial(serial.Serial):
+        """Efficient Serial Subclass.
+
+        Pyserial has known issues that make `Serial.readall` and `Serial.readline` very slow. This implementation address that
+        by
+        cf. https://github.com/pyserial/pyserial/issues/216#issuecomment-369414522
+        """
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.buffer = bytearray()
+
+        def readline(self, size: int | None = -1, /, eol: bytes = b"\r") -> bytes:
+            i = self.buffer.find(eol)
+            if i >= 0:
+                r = self.buffer[: i + 1]
+                self.buffer = self.buffer[i + 1 :]
+                return bytes(r)
+            while True:
+                i = max(1, min(2048, self.in_waiting))
+                data = self.read(i)
+                if not data:
+                    # Read timed out with no terminator; return whatever is buffered.
+                    r = bytes(self.buffer)
+                    self.buffer = bytearray()
+                    return r
+                i = data.find(eol)
+                if i >= 0:
+                    r = bytes(self.buffer + data[: i + 1])
+                    self.buffer = bytearray(data[i + 1 :])
+                    return r
+                else:
+                    self.buffer.extend(data)
+
+    client: EfficientSerial
 
     def __init__(self, config: VAEMSerialConfig):
         """
@@ -1274,7 +1308,7 @@ class VAEMSerial(VAEMBase):
                 self._config.com_port,
                 self._config.baudrate,
             )
-            self.client = serial.Serial(
+            self.client = self.EfficientSerial(
                 port=self._config.com_port,
                 baudrate=self._config.baudrate,
                 bytesize=8,
@@ -1282,6 +1316,7 @@ class VAEMSerial(VAEMBase):
                 stopbits=1,
                 timeout=1,  # TODO: comprehensive timeout setting function. Different for modbus and serial backends
             )
+            # self.reader = ReadLine(self.client)
             logger.info("Serial connection established on %s", self._config.com_port)
             self._init_done = True
             self._vaem_init()
@@ -1341,13 +1376,10 @@ class VAEMSerial(VAEMBase):
             "U",
             g["data_type"],
             ":",
-            "I",
-            g["index"],
-            "S",
-            g["subindex"],
-            "E",
-            g["error_code"],
         ]
+        if g.get("index") is not None and g.get("subindex") is not None:
+            tokens += ["I", g["index"], "S", g["subindex"]]
+        tokens += ["E", g["error_code"]]
         if g.get("transfer_value") is not None:
             tokens += ["V", g["transfer_value"]]
 
@@ -1435,30 +1467,29 @@ class VAEMSerial(VAEMBase):
         logger.debug("VAEMSerial._deconstruct_frame called with frame=%r", frame)
         data = {}
 
-        # Frame layout from _ascii_to_list:
-        #   read:  ["R", "U", dtype, ":", "I", index, "S", subindex, "E", error, "V", value]  (len 12)
-        #   write: ["W", "U", dtype, ":", "I", index, "S", subindex, "E", error]              (len 10)
+        # Frame layout from _ascii_to_list (index/subindex are optional in device replies):
+        #   read:  ["R", "U", dtype, ":", ("I", index, "S", subindex,)? "E", error, "V", value]
+        #   write: ["W", "U", dtype, ":", ("I", index, "S", subindex,)? "E", error]
         if not frame:
             logger.warning("Empty data frame received, potential operation error state detected: %s", frame)
             return None
 
-        if not isinstance(frame, list) or len(frame) < 10:
+        if not isinstance(frame, list) or "E" not in frame:
             raise ValueError(f"Unable to parse serial frame: {frame!r}")
 
         access_field = frame[0]  # "R" or "W"
-        error_code = int(frame[9])
+        data["errorRet"] = int(frame[frame.index("E") + 1])
 
-        if access_field == "R" and len(frame) == 12:
+        if access_field == "R":
             data["access"] = VaemAccess.READ.value
-            data["errorRet"] = error_code
-            data["transferValue"] = int(frame[11])
-            logger.info("Returned Value: %s", data["transferValue"])
+            if "V" in frame:
+                data["transferValue"] = int(frame[frame.index("V") + 1])
+            logger.info("Returned Value: %s", data.get("transferValue"))
             logger.info("Returned error: %s", data["errorRet"])
             return data
 
-        if access_field == "W" and len(frame) == 10:
+        if access_field == "W":
             data["access"] = VaemAccess.WRITE.value
-            data["errorRet"] = error_code
             logger.debug("Parsed write response with errorRet=%s", data["errorRet"])
             logger.info("Returned error: %s", data["errorRet"])
             return data
@@ -1481,21 +1512,57 @@ class VAEMSerial(VAEMBase):
             logger.debug("BYTES: %s", list(encoded))
 
             self.client.reset_input_buffer()
+            self.client.buffer = bytearray()
             logger.debug("Serial input buffer cleared")
 
             bytes_written = self.client.write(encoded.encode("ascii"))
-            logger.debug(f"Serial write returned code: {bytes_written}")
+            logger.debug("Serial write returned code: %s", bytes_written)
             self.client.flush()
             logger.debug("Serial bytes written and flushed")
-            response = self.client.readall()
-            time.sleep(0.001)
-            decoded = response.decode("ascii")
-            logger.debug("Decoded serial response: %r", decoded)
-            parsed = self._ascii_to_list(decoded)
+
+            # Plan B: stream the response line by line within an overall deadline.
+            # The device may emit non-telegram lines (a lone CR, prompt char,
+            # blanks) before the real reply, so keep reading until the matching
+            # telegram is parsed, then stop immediately for minimal latency.
+            #
+            # The device reply echoes the access type ("R"/"W") and the data type
+            # ("08"/"16"/"32"/"64") but NOT the register index/subindex, so we
+            # match on access + data type and rely on the synchronous,
+            # buffer-flushed exchange for register alignment. Any stale or
+            # mismatched frame is ignored; if no match arrives we return [] so the
+            # caller sees "no response" rather than a wrong value.
+            expected_access = write_data[0] if write_data else None
+            expected_dtype = write_data[2] if len(write_data) > 2 else None
+            deadline = time.monotonic() + (self.client.timeout or 1.0)
+            while time.monotonic() < deadline:
+                raw = self.client.readline(eol=b"\r")
+                if not raw:
+                    break  # read timed out with no more data
+                try:
+                    decoded = raw.decode("ascii")
+                except UnicodeDecodeError:
+                    continue
+                try:
+                    tokens = self._ascii_to_list(decoded)
+                except ValueError:
+                    # Echo/prompt/blank line - keep streaming.
+                    continue
+                if tokens[0] == expected_access and tokens[2] == expected_dtype:
+                    parsed = tokens
+                    break
             logger.debug("Parsed serial response: %s", parsed)
         except Exception as error:
             logger.error("Transfer error: %s", str(error))
         return parsed
+
+    # def _read_lines(self) -> list:
+    #     """Blah."""
+    #     next_line = "True"
+    #     responses = []
+    #     while next_line:
+    #         responses.append(next_line)
+    #         next_line = self.reader.readline()
+    #     return responses
 
     def close_client(self) -> None:
         """
