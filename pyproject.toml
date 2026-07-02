@@ -44,7 +44,8 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.14.0",
     "ruff",
-    "ty"
+    "ty",
+    "pyinstrument>=5.1.2",
 ]
 docs = [
     "mkdocs>=1.6.1",
