@@ -1522,17 +1522,6 @@ class VAEMSerial(VAEMBase):
             self.client.flush()
             logger.debug("Serial bytes written and flushed")
 
-            # Plan B: stream the response line by line within an overall deadline.
-            # The device may emit non-telegram lines (a lone CR, prompt char,
-            # blanks) before the real reply, so keep reading until the matching
-            # telegram is parsed, then stop immediately for minimal latency.
-            #
-            # The device reply echoes the access type ("R"/"W") and the data type
-            # ("08"/"16"/"32"/"64") but NOT the register index/subindex, so we
-            # match on access + data type and rely on the synchronous,
-            # buffer-flushed exchange for register alignment. Any stale or
-            # mismatched frame is ignored; if no match arrives we return [] so the
-            # caller sees "no response" rather than a wrong value.
             expected_access = write_data[0] if write_data else None
             expected_dtype = write_data[2] if len(write_data) > 2 else None
             deadline = time.monotonic() + (self.client.timeout or 1.0)
@@ -1556,15 +1545,6 @@ class VAEMSerial(VAEMBase):
         except Exception as error:
             logger.error("Transfer error: %s", str(error))
         return parsed
-
-    # def _read_lines(self) -> list:
-    #     """Blah."""
-    #     next_line = "True"
-    #     responses = []
-    #     while next_line:
-    #         responses.append(next_line)
-    #         next_line = self.reader.readline()
-    #     return responses
 
     def close_client(self) -> None:
         """
