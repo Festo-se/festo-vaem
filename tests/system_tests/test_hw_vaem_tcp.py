@@ -116,7 +116,7 @@ class TestVAEMHardwareValveSwitchingTime:
 
         # Should not raise an exception
         vaem_device.set_valve_switching_time(valve_id, switching_time)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_time = vaem_device.get_valve_switching_time(valve_id)
         assert retrieved_time == switching_time, f"Expected {switching_time}, got {retrieved_time}"
@@ -138,7 +138,7 @@ class TestVAEMHardwareValveSwitchingTime:
         valve_id = 1
         min_time = 10
         vaem_device.set_valve_switching_time(valve_id, min_time)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_time = vaem_device.get_valve_switching_time(valve_id)
         assert retrieved_time == min_time, f"Expected minimum {min_time}, got {retrieved_time}"
@@ -148,7 +148,7 @@ class TestVAEMHardwareValveSwitchingTime:
         valve_id = 1
         max_time = 5000
         vaem_device.set_valve_switching_time(valve_id, max_time)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_time = vaem_device.get_valve_switching_time(valve_id)
         assert retrieved_time == max_time, f"Expected maximum {max_time}, got {retrieved_time}"
@@ -158,7 +158,7 @@ class TestVAEMHardwareValveSwitchingTime:
         valve_id = 1
         test_time = 150
         vaem_device.set_valve_switching_time(valve_id, test_time)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         switching_time = vaem_device.get_valve_switching_time(valve_id)
         assert switching_time is not None, "Switching time should not be None"
@@ -243,14 +243,14 @@ class TestVAEMHardwareStatus:
     def test_set_error_handling_enabled(self, vaem_device):
         """Test enabling error handling."""
         vaem_device.set_error_handling(1)
-        time.sleep(0.1)
+        time.sleep(0.04)
         status = vaem_device.get_error_handling_status()
         assert status == 1
 
     def test_set_error_handling_disabled(self, vaem_device):
         """Test disabling error handling."""
         vaem_device.set_error_handling(0)
-        time.sleep(0.1)
+        time.sleep(0.04)
         status = vaem_device.get_error_handling_status()
         assert status == 0
 
@@ -265,7 +265,7 @@ class TestVAEMHardwareInrushCurrent:
 
         # Should not raise an exception
         vaem_device.set_inrush_current(valve_id, inrush_current)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_current = vaem_device.get_inrush_current(valve_id)
         assert retrieved_current == inrush_current, f"Expected {inrush_current}, got {retrieved_current}"
@@ -287,7 +287,7 @@ class TestVAEMHardwareInrushCurrent:
         valve_id = 1
         test_current = 200
         vaem_device.set_inrush_current(valve_id, test_current)
-        time.sleep(0.1)
+        time.sleep(0.04)
 
         inrush_current = vaem_device.get_inrush_current(valve_id)
         assert inrush_current is not None, "Inrush current should not be None"
@@ -299,7 +299,7 @@ class TestVAEMHardwareInrushCurrent:
         valve_id = 1
         min_current = 50
         vaem_device.set_inrush_current(valve_id, min_current)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_current = vaem_device.get_inrush_current(valve_id)
         assert retrieved_current == min_current, f"Expected minimum {min_current}, got {retrieved_current}"
@@ -309,7 +309,7 @@ class TestVAEMHardwareInrushCurrent:
         valve_id = 1
         max_current = 800
         vaem_device.set_inrush_current(valve_id, max_current)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_current = vaem_device.get_inrush_current(valve_id)
         assert retrieved_current == max_current, f"Expected maximum {max_current}, got {retrieved_current}"
@@ -325,7 +325,7 @@ class TestVAEMHardwareNominalVoltage:
 
         # Should not raise an exception
         vaem_device.set_nominal_voltage(valve_id, voltage)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_voltage = vaem_device.get_nominal_voltage(valve_id)
         assert retrieved_voltage == voltage, f"Expected {voltage}, got {retrieved_voltage}"
@@ -346,7 +346,7 @@ class TestVAEMHardwareNominalVoltage:
         test_voltage = 18000  # 18V in mV
 
         vaem_device.set_nominal_voltage(valve_id, test_voltage)
-        time.sleep(0.1)
+        time.sleep(0.04)
 
         voltage = vaem_device.get_nominal_voltage(valve_id)
         assert voltage is not None, "Nominal voltage should not be None"
@@ -358,7 +358,7 @@ class TestVAEMHardwareNominalVoltage:
         valve_id = 1
         min_voltage = 8000  # 8V in mV
         vaem_device.set_nominal_voltage(valve_id, min_voltage)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_voltage = vaem_device.get_nominal_voltage(valve_id)
         assert retrieved_voltage == min_voltage, f"Expected minimum {min_voltage}, got {retrieved_voltage}"
@@ -368,7 +368,7 @@ class TestVAEMHardwareNominalVoltage:
         valve_id = 1
         max_voltage = 24000  # 24V in mV
         vaem_device.set_nominal_voltage(valve_id, max_voltage)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_voltage = vaem_device.get_nominal_voltage(valve_id)
         assert retrieved_voltage == max_voltage, f"Expected maximum {max_voltage}, got {retrieved_voltage}"
@@ -384,7 +384,7 @@ class TestVAEMHardwareDelayTime:
 
         # Should not raise an exception
         vaem_device.set_delay_time(valve_id, delay_time)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_delay = vaem_device.get_delay_time(valve_id)
         assert retrieved_delay == delay_time, f"Expected {delay_time}, got {retrieved_delay}"
@@ -405,7 +405,7 @@ class TestVAEMHardwareDelayTime:
         test_delay = 75
 
         vaem_device.set_delay_time(valve_id, test_delay)
-        time.sleep(0.1)
+        time.sleep(0.04)
 
         delay_time = vaem_device.get_delay_time(valve_id)
         assert delay_time is not None, "Delay time should not be None"
@@ -417,7 +417,7 @@ class TestVAEMHardwareDelayTime:
         valve_id = 1
         min_delay = 0
         vaem_device.set_delay_time(valve_id, min_delay)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_delay = vaem_device.get_delay_time(valve_id)
         assert retrieved_delay == min_delay, f"Expected minimum {min_delay}, got {retrieved_delay}"
@@ -427,7 +427,7 @@ class TestVAEMHardwareDelayTime:
         valve_id = 1
         max_delay = 1000
         vaem_device.set_delay_time(valve_id, max_delay)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_delay = vaem_device.get_delay_time(valve_id)
         assert retrieved_delay == max_delay, f"Expected maximum {max_delay}, got {retrieved_delay}"
@@ -443,7 +443,7 @@ class TestVAEMHardwarePickupTime:
 
         # Should not raise an exception
         vaem_device.set_pickup_time(valve_id, pickup_time)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_pickup = vaem_device.get_pickup_time(valve_id)
         assert retrieved_pickup == pickup_time, f"Expected {pickup_time}, got {retrieved_pickup}"
@@ -464,7 +464,7 @@ class TestVAEMHardwarePickupTime:
         test_pickup = 80
 
         vaem_device.set_pickup_time(valve_id, test_pickup)
-        time.sleep(0.1)
+        time.sleep(0.04)
 
         pickup_time = vaem_device.get_pickup_time(valve_id)
         assert pickup_time is not None, "Pickup time should not be None"
@@ -476,7 +476,7 @@ class TestVAEMHardwarePickupTime:
         valve_id = 1
         min_pickup = 10
         vaem_device.set_pickup_time(valve_id, min_pickup)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_pickup = vaem_device.get_pickup_time(valve_id)
         assert retrieved_pickup == min_pickup, f"Expected minimum {min_pickup}, got {retrieved_pickup}"
@@ -486,7 +486,7 @@ class TestVAEMHardwarePickupTime:
         valve_id = 1
         max_pickup = 500
         vaem_device.set_pickup_time(valve_id, max_pickup)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_pickup = vaem_device.get_pickup_time(valve_id)
         assert retrieved_pickup == max_pickup, f"Expected maximum {max_pickup}, got {retrieved_pickup}"
@@ -502,7 +502,7 @@ class TestVAEMHardwareHoldingCurrent:
 
         # Should not raise an exception
         vaem_device.set_holding_current(valve_id, holding_current)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_current = vaem_device.get_holding_current(valve_id)
         assert retrieved_current == holding_current, f"Expected {holding_current}, got {retrieved_current}"
@@ -525,7 +525,7 @@ class TestVAEMHardwareHoldingCurrent:
         test_current = 120
 
         vaem_device.set_holding_current(valve_id, test_current)
-        time.sleep(0.1)
+        time.sleep(0.04)
 
         holding_current = vaem_device.get_holding_current(valve_id)
         assert holding_current is not None, "Holding current should not be None"
@@ -537,7 +537,7 @@ class TestVAEMHardwareHoldingCurrent:
         valve_id = 1
         min_current = 20
         vaem_device.set_holding_current(valve_id, min_current)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_current = vaem_device.get_holding_current(valve_id)
         assert retrieved_current == min_current, f"Expected minimum {min_current}, got {retrieved_current}"
@@ -547,7 +547,7 @@ class TestVAEMHardwareHoldingCurrent:
         valve_id = 1
         max_current = 400
         vaem_device.set_holding_current(valve_id, max_current)
-        time.sleep(0.1)  # Brief delay for device to process
+        time.sleep(0.04)  # Brief delay for device to process
 
         retrieved_current = vaem_device.get_holding_current(valve_id)
         assert retrieved_current == max_current, f"Expected maximum {max_current}, got {retrieved_current}"
@@ -575,7 +575,7 @@ class TestVAEMHardwareCurrentReductionTime:
         test_reduction = 100
 
         vaem_device.set_current_reduction_time(valve_id, test_reduction)
-        time.sleep(0.1)
+        time.sleep(0.04)
 
         reduction_time = vaem_device.get_current_reduction_time(valve_id)
         assert reduction_time is not None, "Reduction time should not be None"
@@ -636,7 +636,7 @@ class TestVAEMHardwareComplexScenarios:
             vaem_device.select_valve(valve_id)
             vaem_device.set_valve_switching_time(valve_id, 50 + valve_id * 10)
             vaem_device.open_selected_valves()
-            time.sleep(0.1)
+            time.sleep(0.04)
             vaem_device.close_valves()
             vaem_device.deselect_valve(valve_id)
 
