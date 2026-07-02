@@ -130,13 +130,13 @@ VAEM_SERIAL_PATTERNS = {
         r":I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*)\r?$"
     ),
     "rx_write": (
-        r"^R?(?P<access>W)U(?P<data_type>08|16|32|64)"
-        r":I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*)"
+        r"^[>R]?(?P<access>W)U(?P<data_type>08|16|32|64)"
+        r":(?:I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*))?"
         r"E(?P<error_code>0|[1-9]\d*)\r?$"
     ),
     "rx_read": (
-        r"^R?(?P<access>R)U(?P<data_type>08|16|32|64)"
-        r":I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*)"
+        r"^[>R]?(?P<access>R)U(?P<data_type>08|16|32|64)"
+        r":(?:I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*))?"
         r"E(?P<error_code>0|[1-9]\d*)V(?P<transfer_value>0|[1-9]\d*)\r?$"
     ),
 }
