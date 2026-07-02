@@ -1252,10 +1252,12 @@ class VAEMSerial(VAEMBase):
         """
 
         def __init__(self, *args, **kwargs):
+            """Initialize Efficient Serial class."""
             super().__init__(*args, **kwargs)
             self.buffer = bytearray()
 
         def readline(self, size: int | None = -1, /, eol: bytes = b"\r") -> bytes:
+            """Read line serial method override."""
             i = self.buffer.find(eol)
             if i >= 0:
                 r = self.buffer[: i + 1]
