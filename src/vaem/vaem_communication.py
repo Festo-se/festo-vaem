@@ -1,8 +1,8 @@
 """
 Festo VAEM backend communication module.
 
-This module handles all communication underneath the hood
-and abstracting it all from the user.
+Detaches the connection mode from the VAEM frontend and handles all communication underneath the hood,
+abstracting away from the end user.
 """
 
 import logging
@@ -58,7 +58,7 @@ class VAEMBase(ABC):
 
     def get_transfer_value(self, operation, index, sub_index=0, transfer_value=None) -> dict:
         """
-        Gets the transfer value for the VAEM operation.
+        Get the transfer value for the VAEM operation.
 
         Typical usage example:
             data = vaem.get_transfer_value(
@@ -104,7 +104,7 @@ class VAEMBase(ABC):
 
     def _get_status(self, status_word) -> dict:
         """
-        Gets the current status of the different parts of the VAEM.
+        Get the current status of the different parts of the VAEM.
 
         from the 15 bit status word returned by the VAEM.
 
@@ -132,7 +132,7 @@ class VAEMBase(ABC):
     @abstractmethod
     def _construct_frame(self, data: dict) -> list:
         """
-        Constructs data frame for transfer to VAEM device.
+        Construct data frame for transfer to VAEM device.
 
         Args:
             data (dict): Data to be sent to VAEM device
@@ -144,7 +144,7 @@ class VAEMBase(ABC):
     @abstractmethod
     def _deconstruct_frame(self, frame) -> dict | None:
         """
-        Deconstructs incoming data frame from VAEM device.
+        Deconstruct incoming data frame from VAEM device.
 
         Args:
             frame: dict coming in from the device
@@ -156,7 +156,7 @@ class VAEMBase(ABC):
     @abstractmethod
     def _transfer(self, write_data: list) -> list:
         """
-        Method of transferring information from Python driver to device.
+        Transfer information from Python driver to device.
 
         Args:
             write_data: List of data that will be transferred to VAEM device
@@ -168,7 +168,7 @@ class VAEMBase(ABC):
     @abstractmethod
     def close_client(self):
         """
-        Closes the client connection to the VAEM device.
+        Close the client connection to the VAEM device.
 
         Returns:
             None
@@ -177,7 +177,7 @@ class VAEMBase(ABC):
 
     def send_command(self, data: dict) -> dict | None:
         """
-        Sends commands to vaem device and returns response.
+        Send commands to vaem device and returns response.
 
         Typical usage example:
             data = vaem._get_transfer_value(
@@ -202,9 +202,10 @@ class VAEMBase(ABC):
 
     def _vaem_init(self):
         """
-        Runs an additional vaem initialization process to configure.
+        Run internal vaem initialization.
 
-        the correct read and write for the driver.
+        Internal helper for instantiation a connection to a VAEM with the correct read and write for
+        the driver.
         """
         if self._init_done:
             try:
@@ -226,7 +227,7 @@ class VAEMBase(ABC):
 
     def save_settings(self) -> None:
         """
-        Saves all parameters to non-volatile memory.
+        Save all parameters to non-volatile memory.
 
         Typical usage example:
             vaem.save_settings()
@@ -252,7 +253,7 @@ class VAEMBase(ABC):
 
     def select_valve(self, valve_id: int) -> None:
         """
-        Selects one valve in the VAEM.
+        Select one valve in the VAEM.
 
         According to VAEM Logic all selected valves can be opened,
         others cannot with open command
@@ -300,7 +301,7 @@ class VAEMBase(ABC):
 
     def deselect_valve(self, valve_id: int) -> None:
         """
-        Deselects one valve in the VAEM.
+        Deselect one valve in the VAEM.
 
         According to VAEM Logic all selected valves can be opened,
         others cannot with open command
@@ -347,7 +348,7 @@ class VAEMBase(ABC):
 
     def set_valve_switching_time(self, valve_id: int, opening_time: int) -> None:
         """
-        Sets the switching time for the specified valve.
+        Set the switching time for the specified valve.
 
         Typical usage example:
             valve_id = 1
@@ -384,7 +385,7 @@ class VAEMBase(ABC):
 
     def open_selected_valves(self) -> None:
         """
-        Opens all valves that are selected.
+        Open all valves that are selected.
 
         Typical usage example:
             vaem.open_selected_valves()
@@ -419,7 +420,7 @@ class VAEMBase(ABC):
 
     def open_valves(self, timings: dict[int, int]) -> None:
         """
-        Selects and opens valves with specified actuation times.
+        Select and opens valves with specified actuation times.
 
         Typical usage example:
             valve_opening_times = {1: 100,
@@ -447,7 +448,7 @@ class VAEMBase(ABC):
 
     def close_valves(self) -> None:
         """
-        Closes valves that were previously selected.
+        Close valves that were previously selected.
 
         Typical usage example:
             vaem.close_valves()
@@ -536,7 +537,7 @@ class VAEMBase(ABC):
 
     def clear_control_word(self) -> None:
         """
-        Clears the control word of the VAEM.
+        Clear the control word of the VAEM.
 
         This is used to reset the control word after an open or close command.
 
@@ -558,6 +559,8 @@ class VAEMBase(ABC):
 
     def clear_error(self) -> None:
         """
+        Clear error state on VAEM device.
+
         If any error occurs in valve opening, must be cleared with this opperation.
 
         Typical usage example:
@@ -588,7 +591,7 @@ class VAEMBase(ABC):
 
     def set_inrush_current(self, valve_id: int, inrush_current: int) -> None:
         """
-        Changes the inrush current for the valves based on valve ID.
+        Change the inrush current for the valves based on valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -625,7 +628,7 @@ class VAEMBase(ABC):
 
     def get_inrush_current(self, valve_id: int) -> int | None:
         """
-        Gets the Inrush Current for the selected Valve ID.
+        Get the Inrush Current for the selected Valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -659,7 +662,7 @@ class VAEMBase(ABC):
 
     def set_nominal_voltage(self, valve_id: int, voltage: int) -> None:
         """
-        Sets the nominal voltage on the valve ID specified.
+        Set the nominal voltage on the valve ID specified.
 
         Typical usage example:
             valve_id = 1
@@ -694,7 +697,7 @@ class VAEMBase(ABC):
 
     def get_nominal_voltage(self, valve_id: int) -> int | None:
         """
-        Gets the nominal voltage for the specified valve ID.
+        Get the nominal voltage for the specified valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -726,7 +729,7 @@ class VAEMBase(ABC):
 
     def get_valve_switching_time(self, valve_id: int) -> int | None:
         """
-        Gets the switching time in ms for the specific valve ID.
+        Get the switching time in ms for the specific valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -760,7 +763,7 @@ class VAEMBase(ABC):
 
     def get_delay_time(self, valve_id: int) -> int | None:
         """
-        Gets the current delay time for the valve ID.
+        Get the current delay time for the valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -794,7 +797,7 @@ class VAEMBase(ABC):
 
     def set_delay_time(self, valve_id: int, delay_time: int) -> None:
         """
-        Sets the delay time for a specific valve ID.
+        Set the delay time for a specific valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -827,7 +830,7 @@ class VAEMBase(ABC):
 
     def get_pickup_time(self, valve_id: int) -> int | None:
         """
-        Gets the pickup time for the selected valve ID (1-8).
+        Get the pickup time for the selected valve ID (1-8).
 
         Typical usage example:
             valve_id = 1
@@ -861,7 +864,7 @@ class VAEMBase(ABC):
 
     def set_pickup_time(self, valve_id: int, pickup_time: int) -> None:
         """
-        Sets the pickup time for the specified valve ID 1-8.
+        Set the pickup time for the specified valve ID 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -897,7 +900,7 @@ class VAEMBase(ABC):
 
     def get_holding_current(self, valve_id: int) -> int | None:
         """
-        Gets the current holding current for the valve selected 1-8.
+        Get the current holding current for the valve selected 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -931,7 +934,7 @@ class VAEMBase(ABC):
 
     def set_holding_current(self, valve_id: int, holding_current: int) -> None:
         """
-        Sets the holding current for the valve selected 1-8.
+        Set the holding current for the valve selected 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -966,7 +969,7 @@ class VAEMBase(ABC):
 
     def get_current_reduction_time(self, valve_id: int) -> int | None:
         """
-        Gets the time that the current is reduced to the holding current value for the valve selected 1-8.
+        Get the time that the current is reduced to the holding current value for the valve selected 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -1000,7 +1003,7 @@ class VAEMBase(ABC):
 
     def set_current_reduction_time(self, valve_id: int, reduction_time: int) -> None:
         """
-        Sets the time that the current is reduced to the holding current value for the valve selected 1-8.
+        Set the time that the current is reduced to the holding current value for the valve selected 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -1033,7 +1036,7 @@ class VAEMBase(ABC):
 
     def set_error_handling(self, activate: int) -> None:
         """
-        Sets the internal error handling of the vaem. Disabling this will cause the VAEM to omit certain errors.
+        Set the internal error handling of the vaem. Disabling this will cause the VAEM to omit certain errors.
 
         Typical usage example:
             turn_off_handling = 0
@@ -1069,7 +1072,7 @@ class VAEMBase(ABC):
 
     def get_error_handling_status(self) -> int | None:
         """
-        Gets the current state of the internal error handling of the VAEM device.
+        Get the current state of the internal error handling of the VAEM device.
 
         Typical usage example:
             error_handling_status = vaem.get_error_handling_status()
@@ -1144,7 +1147,7 @@ class VAEMModbusTCP(VAEMBase):
 
     def _construct_frame(self, data: dict) -> list:
         """
-        Constructs data frame for transfer to VAEM device.
+        Construct data frame for transfer to VAEM device.
 
         Args:
             data (dict): Data to be sent to VAEM device
@@ -1170,7 +1173,7 @@ class VAEMModbusTCP(VAEMBase):
 
     def _deconstruct_frame(self, frame) -> dict | None:
         """
-        Deconstructs incoming data frame from VAEM device.
+        Deconstruct incoming data frame from VAEM device.
 
         Args:
             frame: dict coming in from the device
@@ -1194,7 +1197,7 @@ class VAEMModbusTCP(VAEMBase):
 
     def _transfer(self, write_data: list) -> list:
         """
-        Method of transferring information from Python driver to device.
+        Transfer information from Python driver to device.
 
         Args:
             write_data: List of data that will be transferred to VAEM device
@@ -1221,7 +1224,7 @@ class VAEMModbusTCP(VAEMBase):
 
     def close_client(self) -> None:
         """
-        Closes the Modbus TCP client connection.
+        Close the Modbus TCP client connection.
 
         Typical usage example:
             vaem.close_client()
@@ -1283,7 +1286,7 @@ class VAEMSerial(VAEMBase):
 
     def __init__(self, config: VAEMSerialConfig):
         """
-        VAEMModbusSerial Constructor.
+        VAEMSerial Constructor.
 
         Args:
             config (VAEMSerialConfig): A configuration class designated for ModbusSerial
@@ -1390,7 +1393,7 @@ class VAEMSerial(VAEMBase):
 
     def _construct_frame(self, data: dict) -> list:
         """
-        Constructs data frame for transfer to VAEM device.
+        Construct data frame for transfer to VAEM device.
 
         Args:
             data (dict): Data to be sent to VAEM device
@@ -1455,7 +1458,7 @@ class VAEMSerial(VAEMBase):
 
     def _deconstruct_frame(self, frame) -> dict | None:
         """
-        Deconstructs incoming tokenized data frame from VAEM device.
+        Deconstruct incoming tokenized data frame from VAEM device.
 
         Args:
             frame (list): Tokenized response components from _ascii_to_list.
@@ -1500,7 +1503,7 @@ class VAEMSerial(VAEMBase):
 
     def _transfer(self, write_data: list) -> list:
         """
-        Method of transferring information from Python driver to device.
+        Transfer information from Python driver to device.
 
         Args:
             write_data: List of data that will be transferred to VAEM device
@@ -1548,7 +1551,7 @@ class VAEMSerial(VAEMBase):
 
     def close_client(self) -> None:
         """
-        Closes the serial client connection.
+        Close the serial client connection.
 
         Typical usage example:
             vaem.close_client()
