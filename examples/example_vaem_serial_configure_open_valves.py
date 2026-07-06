@@ -1,16 +1,16 @@
-"""Example script to configure and open all valves on the VAEM device."""
+"""Example script to configure and open all valves on the VAEM device over a serial connection."""
 
 from os import getenv
 
-from vaem import VAEM, VAEMTCPConfig
+from vaem import VAEM, VAEMSerialConfig
 from festo_python_logging import configure_logging
 
 configure_logging(verbose=True, silence=["pymodbus.logging"])
 
-ip = getenv("VAEM_IP", "192.168.0.1")
+com_port = getenv("VAEM_SERIAL_PORT", "COM3")
 
-"""Create a VAEM instance with TCP/IP configuration"""
-vaem_config = VAEMTCPConfig(ip=ip, port=502)
+"""Create a VAEM instance with serial configuration"""
+vaem_config = VAEMSerialConfig(interface="serial", com_port=com_port, baudrate=9600)
 """Initialize the VAEM device"""
 vaem = VAEM(config=vaem_config)
 
