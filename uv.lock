@@ -495,7 +495,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "pymodbus" },
+    { name = "pymodbus", specifier = ">=3.11.4" },
     { name = "pyserial", specifier = "<=3.5" },
     { name = "pyserial", marker = "extra == 'serial'", specifier = "<=3.5" },
 ]
