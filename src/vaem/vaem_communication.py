@@ -1,18 +1,20 @@
 """
 Festo VAEM backend communication module.
 
-This module handles all communication underneath the hood
- and abstracting it all from the user.
+Detaches the connection mode from the VAEM frontend and handles all communication underneath the hood,
+abstracting away from the end user.
 """
 
 import logging
+
 import struct
 import time
+import serial
+import atexit
 from abc import ABC, abstractmethod
 
-from pymodbus.client import ModbusBaseSyncClient, ModbusSerialClient, ModbusTcpClient
+from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException, ModbusIOException
-
 from .vaem_config import VAEMConfig, VAEMSerialConfig, VAEMTCPConfig
 from .vaem_helper import (
     VaemAccess,
@@ -21,20 +23,19 @@ from .vaem_helper import (
     VaemIndex,
     VaemOperatingMode,
     vaemValveIndex,
+    VAEM_SERIAL_REGEX,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class VAEMModbusClient(ABC):
-    """Modbus Client Class."""
-
-    client: ModbusBaseSyncClient
+class VAEMBase(ABC):
+    """Base VAEM Client Class."""
 
     @abstractmethod
     def __init__(self, config: VAEMConfig):
         """
-        VAEMModbusClient constructor.
+        VAEMBase constructor.
 
         Abstract base class to build out VAEM clients.
 
@@ -46,26 +47,29 @@ class VAEMModbusClient(ABC):
         Returns:
             None
         """
+        self._init_done = False
         self._config = config
-        self.version = None
-        self._read_param = {
-            "address": 0,
-            "length": 0x07,
-        }
-        self._write_param = {
-            "address": 0,
-            "length": 0x07,
-        }
-        self._init_done = True
-        self.error_handling_enabled = 1
-        self.active_valves = [0, 0, 0, 0, 0, 0, 0, 0]
 
-    def _get_transfer_value(self, operation, index, sub_index=0, transfer_value=None) -> dict:
+        self.error_handling_enabled = 1  # TODO: Make this part of the config
+        self.active_valves = [0, 0, 0, 0, 0, 0, 0, 0]
+        # self.active_valves = {i:False for i in range(1,9)} TODO: Change name active_valves to selected_valves
+        # TODO: Add config item for connected_valve_terminals (instead of active_valves -- undoing confusion)
+        atexit.register(self.close_client)  # TODO: Check if this is right
+
+    def get_transfer_value(self, operation, index, sub_index=0, transfer_value=None) -> dict:
         """
-        Gets the transfer value for the VAEM operation.
+        Get the transfer value for the VAEM operation.
+
+        Typical usage example:
+            data = vaem.get_transfer_value(
+                VaemAccess.WRITE.value,
+                VaemIndex.CONTROLWORD,
+                0,
+                VaemControlWords.STARTVALVES.value,
+            )
 
         Args:
-            operation: access
+            operation: Operational access type -- Read or Write specifier
             index: Data object index for accessing VAEM register. Must be of type VaemIndex Enum class
             sub_index: Data object sub_index; often, the valve index for the VAEM
             transfer_value: The actual value to be transfered and saved to the index:sub_index pair location on the VAEM
@@ -91,7 +95,7 @@ class VAEMModbusClient(ABC):
                 out["dataType"] = VaemDataType.UINT8.value
                 out["paramSubIndex"] = 0
                 out["transferValue"] = sub_index
-            case 0x01 | 0x02 | 0x04 | 0x05 | 0x06 | 0x11:
+            case 0x01 | 0x02 | 0x04 | 0x05 | 0x06 | 0x0B:
                 pass
             case _:
                 logger.error("Currently unsupported input param")
@@ -100,7 +104,7 @@ class VAEMModbusClient(ABC):
 
     def _get_status(self, status_word) -> dict:
         """
-        Gets the current status of the different parts of the VAEM.
+        Get the current status of the different parts of the VAEM.
 
         from the 15 bit status word returned by the VAEM.
 
@@ -125,96 +129,94 @@ class VAEMModbusClient(ABC):
         status["Valve8"] = (status_word & 0x8000) >> 15
         return status
 
+    @abstractmethod
     def _construct_frame(self, data: dict) -> list:
         """
-        Constructs data frame for transfer to VAEM device.
+        Construct data frame for transfer to VAEM device.
 
         Args:
             data (dict): Data to be sent to VAEM device
         Returns:
-            list of values to be passed as the expected data type of the Modbus data frame
+            list or string containing values to be passed to the device
         """
-        frame = []
-        tmp = struct.pack(
-            ">BBHBBQ",
-            data["access"],
-            data["dataType"],
-            data["paramIndex"],
-            data["paramSubIndex"],
-            data["errorRet"],
-            data["transferValue"],
-        )
-        try:
-            for i in range(0, len(tmp) - 1, 2):
-                frame.append((tmp[i] << 8) + tmp[i + 1])
-        except ValueError as e:
-            logger.error("Value error: %s. ", str(e))
-        return frame
+        pass
 
-    def _deconstruct_frame(self, frame) -> dict:
+    @abstractmethod
+    def _deconstruct_frame(self, frame) -> dict | None:
         """
-        Deconstructs incoming data frame from VAEM device.
+        Deconstruct incoming data frame from VAEM device.
 
         Args:
             frame: dict coming in from the device
         Returns:
             data: dictionary that contains the information from the dataframe.
         """
-        data = {}
-        if frame is not None:
-            data["access"] = (frame[0] & 0xFF00) >> 8
-            data["dataType"] = frame[0] & 0x00FF
-            data["paramIndex"] = frame[1]
-            data["paramSubIndex"] = (frame[2] & 0xFF00) >> 8
-            data["errorRet"] = frame[2] & 0x00FF
-            data["transferValue"] = 0
-            for i in range(4):
-                data["transferValue"] += frame[len(frame) - 1 - i] << (i * 16)
+        pass
 
-        return data
-
-    def _transfer(self, write_data: list):
+    @abstractmethod
+    def _transfer(self, write_data: list) -> list:
         """
-        Method of transferring information from Python driver to device.
+        Transfer information from Python driver to device.
 
         Args:
             write_data: List of data that will be transferred to VAEM device
         Returns:
             Response from VAEM device.
         """
-        if not self.client.connected:  # type: ignore[attr-defined, ty:unresolved-attribute]
-            self.client.connect()
-        try:
-            data = self.client.readwrite_registers(  # type: ignore[missing-argument]
-                read_address=self._read_param["address"],
-                read_count=self._read_param["length"],
-                write_address=self._write_param["address"],
-                values=write_data,
-                device_id=self._config.unit_id,
+        pass
+
+    @abstractmethod
+    def close_client(self):
+        """
+        Close the client connection to the VAEM device.
+
+        Returns:
+            None
+        """
+        pass
+
+    def send_command(self, data: dict) -> dict | None:
+        """
+        Send commands to vaem device and returns response.
+
+        Typical usage example:
+            data = vaem._get_transfer_value(
+                VaemAccess.WRITE.value,
+                VaemIndex.CONTROLWORD,
+                0,
+                VaemControlWords.STARTVALVES.value,
             )
-            time.sleep(0.001)
-            return data.registers
-        except ModbusException as modbus_error:
-            logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
-        return None
+            response = vaem.send_command(data)
+
+        Args:
+            data: Dictionary of data that will be transferred to VAEM device
+
+        Returns:
+            Dictionary of response data from VAEM device.
+        """
+        frame = self._construct_frame(data)
+        resp = self._transfer(frame)
+        if resp is not None:
+            resp = self._deconstruct_frame(resp)
+        return resp
 
     def _vaem_init(self):
         """
-        Runs an additional vaem initialization process to configure.
+        Run internal vaem initialization.
 
-        the correct read and write for the driver.
+        Internal helper for instantiation a connection to a VAEM with the correct read and write for
+        the driver.
         """
         if self._init_done:
             try:
                 # set operating mode
-                data = self._get_transfer_value(
+                data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
                     VaemIndex.OPERATINGMODE,
                     0,
                     VaemOperatingMode.OPMODE1.value,
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
                 self.clear_error()
                 self._init_done = True
                 self.error_handling_enabled = self.get_error_handling_status()
@@ -225,7 +227,7 @@ class VAEMModbusClient(ABC):
 
     def save_settings(self) -> None:
         """
-        Saves all parameters to non-volatile memory.
+        Save all parameters to non-volatile memory.
 
         Typical usage example:
             vaem.save_settings()
@@ -245,14 +247,13 @@ class VAEMModbusClient(ABC):
             data["paramSubIndex"] = 0
             data["errorRet"] = 0
             data["transferValue"] = 99999
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
         else:
             logger.warning("No VAEM Connected!!")
 
     def select_valve(self, valve_id: int) -> None:
         """
-        Selects one valve in the VAEM.
+        Select one valve in the VAEM.
 
         According to VAEM Logic all selected valves can be opened,
         others cannot with open command
@@ -274,21 +275,23 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id in range(1, 9):
                 # get currently selected valves
-                data = self._get_transfer_value(
+                # data = [VaemAccess.READ.value, VaemIndex.SELECTVALVE.value, vaemValveIndex[valve_id]]
+                data = self.get_transfer_value(
                     VaemAccess.READ.value,
                     VaemIndex.SELECTVALVE,
                     vaemValveIndex[valve_id],
                 )
-                frame = self._construct_frame(data)
-                resp = self._transfer(frame)
+                resp = self.send_command(data)
+                if resp is None:
+                    logger.warning("Failed to read select valve status")
+                    return
                 # select new valve
-                data = self._get_transfer_value(
+                data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
                     VaemIndex.SELECTVALVE,
-                    vaemValveIndex[valve_id] | self._deconstruct_frame(resp)["transferValue"],
+                    vaemValveIndex[valve_id] | resp["transferValue"],
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
                 self.active_valves[valve_id - 1] = 1
             else:
                 logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
@@ -298,7 +301,7 @@ class VAEMModbusClient(ABC):
 
     def deselect_valve(self, valve_id: int) -> None:
         """
-        Deselects one valve in the VAEM.
+        Deselect one valve in the VAEM.
 
         According to VAEM Logic all selected valves can be opened,
         others cannot with open command
@@ -320,21 +323,22 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id in range(1, 9):
                 # get currently selected valves
-                data = self._get_transfer_value(
+                data = self.get_transfer_value(
                     VaemAccess.READ.value,
                     VaemIndex.SELECTVALVE,
                     vaemValveIndex[valve_id],
                 )
-                frame = self._construct_frame(data)
-                resp = self._transfer(frame)
+                resp = self.send_command(data)
+                if resp is None:
+                    logger.warning("Failed to read select valve status")
+                    return
                 # deselect new valve
-                data = self._get_transfer_value(
+                data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
                     VaemIndex.SELECTVALVE,
-                    self._deconstruct_frame(resp)["transferValue"] & (~(vaemValveIndex[valve_id])),
+                    resp["transferValue"] & (~(vaemValveIndex[valve_id])),
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
                 self.active_valves[valve_id - 1] = 0
             else:
                 logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
@@ -344,7 +348,7 @@ class VAEMModbusClient(ABC):
 
     def set_valve_switching_time(self, valve_id: int, opening_time: int) -> None:
         """
-        Sets the switching time for the specified valve.
+        Set the switching time for the specified valve.
 
         Typical usage example:
             valve_id = 1
@@ -366,14 +370,13 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             opening_time = int(opening_time / 0.2)
             if (opening_time in range(0, 9999999999999)) and (valve_id in range(1, 9)):
-                data = self._get_transfer_value(
+                data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
                     VaemIndex.SWITCHINGTIME,
                     (valve_id - 1),
                     int(opening_time),
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
             else:
                 logger.error("Valve ID's have a range of 1-8, Inputted : %s", valve_id)
                 raise ValueError
@@ -382,7 +385,7 @@ class VAEMModbusClient(ABC):
 
     def open_selected_valves(self) -> None:
         """
-        Opens all valves that are selected.
+        Open all valves that are selected.
 
         Typical usage example:
             vaem.open_selected_valves()
@@ -395,32 +398,29 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             # save settings
             if self.error_handling_enabled:
-                data = self._get_transfer_value(
+                data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
                     VaemIndex.CONTROLWORD,
                     0,
                     VaemControlWords.STARTVALVES.value,
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
             else:
-                data = self._get_transfer_value(
+                data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
                     VaemIndex.CONTROLWORD,
                     0,
                     VaemControlWords.STARTVALVESRESETERROR.value,
                 )
-                frame = self._construct_frame(data)
-                self._transfer(frame)
+                self.send_command(data)
 
-            # reset the control word
             self.clear_control_word()
         else:
             logger.warning("No VAEM Connected!!")
 
     def open_valves(self, timings: dict[int, int]) -> None:
         """
-        Selects and opens valves with specified actuation times.
+        Select and opens valves with specified actuation times.
 
         Typical usage example:
             valve_opening_times = {1: 100,
@@ -448,7 +448,7 @@ class VAEMModbusClient(ABC):
 
     def close_valves(self) -> None:
         """
-        Closes valves that were previously selected.
+        Close valves that were previously selected.
 
         Typical usage example:
             vaem.close_valves()
@@ -461,14 +461,13 @@ class VAEMModbusClient(ABC):
         """
         if self._init_done:
             # save settings
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.CONTROLWORD,
                 0,
                 VaemControlWords.STOPVALVES.value,
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
             self.clear_error()
         else:
             logger.warning("No VAEM Connected!!")
@@ -489,15 +488,15 @@ class VAEMModbusClient(ABC):
             Control word of the VAEM. For more information, please refer to the VAEM Operation Instruction manual.
         """
         if self._init_done:
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.CONTROLWORD,
                 0,
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            return int(self._deconstruct_frame(resp)["transferValue"])
+            resp = self.send_command(data)
+            if resp is not None:
+                return int(resp["transferValue"])
         logger.warning("No VAEM Connected!!")
         return None
 
@@ -523,22 +522,22 @@ class VAEMModbusClient(ABC):
             Dictionary of the status for the device. For more information, please refer to the VAEM Operation Instruction manual.
         """
         if self._init_done:
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.STATUSWORD,
                 0,
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            logger.info(self._get_status(self._deconstruct_frame(resp)["transferValue"]))
-            return self._get_status(self._deconstruct_frame(resp)["transferValue"])
+            resp = self.send_command(data)
+            if resp is not None:
+                logger.info(self._get_status(resp["transferValue"]))
+                return self._get_status(resp["transferValue"])
         logger.warning("No VAEM Connected!!")
         return {}
 
     def clear_control_word(self) -> None:
         """
-        Clears the control word of the VAEM.
+        Clear the control word of the VAEM.
 
         This is used to reset the control word after an open or close command.
 
@@ -546,21 +545,22 @@ class VAEMModbusClient(ABC):
             vaem.clear_control_word()
         """
         if self._init_done:
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.CONTROLWORD,
                 0,
                 VaemControlWords.RESETSTATE.value,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            if self._deconstruct_frame(resp)["errorRet"] == 0:
+            resp = self.send_command(data)
+            if resp is not None and resp["errorRet"] == 0:
                 logger.info("Control word cleared successfully")
         else:
             logger.warning("No VAEM Connected!!")
 
     def clear_error(self) -> None:
         """
+        Clear error state on VAEM device.
+
         If any error occurs in valve opening, must be cleared with this opperation.
 
         Typical usage example:
@@ -573,27 +573,25 @@ class VAEMModbusClient(ABC):
             None
         """
         if self._init_done:
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.CONTROLWORD,
                 0,
                 VaemControlWords.RESETERRORS.value,
             )
-            frame = self._construct_frame(data)
-            response = self._transfer(frame)
-            if self._deconstruct_frame(response)["errorRet"] == 0:
-                logger.info("Error cleared successfully")
-                self.clear_control_word()
-            else:
-                logger.error(
-                    "Error could not be cleared, error code: %s", self._deconstruct_frame(response)["errorRet"]
-                )
+            resp = self.send_command(data)
+            if resp is not None:
+                if resp["errorRet"] == 0:
+                    logger.info("Error cleared successfully")
+                    self.clear_control_word()
+                else:
+                    logger.error("Error could not be cleared, error code: %s", resp["errorRet"])
         else:
             logger.warning("No VAEM Connected!!")
 
     def set_inrush_current(self, valve_id: int, inrush_current: int) -> None:
         """
-        Changes the inrush current for the valves based on valve ID.
+        Change the inrush current for the valves based on valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -620,18 +618,17 @@ class VAEMModbusClient(ABC):
                 raise ValueError(
                     f"Error, input for inrush current was: {inrush_current}, inrush current ranges from 20, 1000 mA"
                 )
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.INRUSHCURRENT,
                 (valve_id - 1),
                 int(inrush_current),
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_inrush_current(self, valve_id: int) -> int | None:
         """
-        Gets the Inrush Current for the selected Valve ID.
+        Get the Inrush Current for the selected Valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -652,20 +649,20 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was: {valve_id}, IDs range from 1-8")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.INRUSHCURRENT,
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            return self._deconstruct_frame(resp)["transferValue"]
+            resp = self.send_command(data)
+            if resp is not None:
+                return resp["transferValue"]
         return None
 
     def set_nominal_voltage(self, valve_id: int, voltage: int) -> None:
         """
-        Sets the nominal voltage on the valve ID specified.
+        Set the nominal voltage on the valve ID specified.
 
         Typical usage example:
             valve_id = 1
@@ -690,18 +687,17 @@ class VAEMModbusClient(ABC):
                 raise ValueError(f"Error, input valve ID was: {valve_id}, IDs range from 1-8")
             if voltage not in range(8000, 24001):
                 raise ValueError(f"Error, input voltage was: {voltage}, input voltage ranges from 8000-24000 mV")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.NOMINALVOLTAGE,
                 (valve_id - 1),
                 voltage,
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_nominal_voltage(self, valve_id: int) -> int | None:
         """
-        Gets the nominal voltage for the specified valve ID.
+        Get the nominal voltage for the specified valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -720,20 +716,20 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was: {valve_id}, IDs range from 1-8")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.NOMINALVOLTAGE,
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            return self._deconstruct_frame(resp)["transferValue"]
+            resp = self.send_command(data)
+            if resp is not None:
+                return resp["transferValue"]
         return None
 
     def get_valve_switching_time(self, valve_id: int) -> int | None:
         """
-        Gets the switching time in ms for the specific valve ID.
+        Get the switching time in ms for the specific valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -754,20 +750,20 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was: {valve_id}, IDs range from 1-8")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.SWITCHINGTIME,
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
+            resp = self.send_command(data)
+            if resp is not None:
+                return int(resp["transferValue"] * 0.2)
         return None
 
     def get_delay_time(self, valve_id: int) -> int | None:
         """
-        Gets the current delay time for the valve ID.
+        Get the current delay time for the valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -788,20 +784,20 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.TIMEDELAY,
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
+            resp = self.send_command(data)
+            if resp is not None:
+                return int(resp["transferValue"] * 0.2)
         return None
 
     def set_delay_time(self, valve_id: int, delay_time: int) -> None:
         """
-        Sets the delay time for a specific valve ID.
+        Set the delay time for a specific valve ID.
 
         Typical usage example:
             valve_id = 1
@@ -824,18 +820,17 @@ class VAEMModbusClient(ABC):
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
             delay_time = int(delay_time / 0.2)
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.TIMEDELAY,
                 (valve_id - 1),
                 delay_time,
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_pickup_time(self, valve_id: int) -> int | None:
         """
-        Gets the pickup time for the selected valve ID (1-8).
+        Get the pickup time for the selected valve ID (1-8).
 
         Typical usage example:
             valve_id = 1
@@ -856,20 +851,20 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.PICKUPTIME,
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
+            resp = self.send_command(data)
+            if resp is not None:
+                return int(resp["transferValue"] * 0.2)
         return None
 
     def set_pickup_time(self, valve_id: int, pickup_time: int) -> None:
         """
-        Sets the pickup time for the specified valve ID 1-8.
+        Set the pickup time for the specified valve ID 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -895,18 +890,17 @@ class VAEMModbusClient(ABC):
             if pickup_time not in range(1, 501):
                 raise ValueError(f"Error, input pickup time was {pickup_time} ms, This is out of the range of 1-500 ms")
             pickup_time = int(pickup_time / 0.2)
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.PICKUPTIME,
                 (valve_id - 1),
                 pickup_time,
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_holding_current(self, valve_id: int) -> int | None:
         """
-        Gets the current holding current for the valve selected 1-8.
+        Get the current holding current for the valve selected 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -927,20 +921,20 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.HOLDINGCURRENT,
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            return self._deconstruct_frame(resp)["transferValue"]
+            resp = self.send_command(data)
+            if resp is not None:
+                return resp["transferValue"]
         return None
 
     def set_holding_current(self, valve_id: int, holding_current: int) -> None:
         """
-        Sets the holding current for the valve selected 1-8.
+        Set the holding current for the valve selected 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -965,18 +959,17 @@ class VAEMModbusClient(ABC):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
             if holding_current not in range(20, 401):
                 raise ValueError(f"Error, input holding current out of range: {holding_current}")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.HOLDINGCURRENT,
                 (valve_id - 1),
                 int(holding_current),
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def get_current_reduction_time(self, valve_id: int) -> int | None:
         """
-        Gets the time that the current is reduced to the holding current value for the valve selected 1-8.
+        Get the time that the current is reduced to the holding current value for the valve selected 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -997,20 +990,20 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.CURRENTREDUCTIONTIME,
                 (valve_id - 1),
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            return int(self._deconstruct_frame(resp)["transferValue"] * 0.2)
+            resp = self.send_command(data)
+            if resp is not None:
+                return int(resp["transferValue"] * 0.2)
         return None
 
     def set_current_reduction_time(self, valve_id: int, reduction_time: int) -> None:
         """
-        Sets the time that the current is reduced to the holding current value for the valve selected 1-8.
+        Set the time that the current is reduced to the holding current value for the valve selected 1-8.
 
         Typical usage example:
             valve_id = 1
@@ -1033,18 +1026,17 @@ class VAEMModbusClient(ABC):
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
             reduction_time = int(reduction_time * 5)
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.CURRENTREDUCTIONTIME,
                 (valve_id - 1),
                 int(reduction_time),
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
 
     def set_error_handling(self, activate: int) -> None:
         """
-        Sets the internal error handling of the vaem. Disabling this will cause the VAEM to omit certain errors.
+        Set the internal error handling of the vaem. Disabling this will cause the VAEM to omit certain errors.
 
         Typical usage example:
             turn_off_handling = 0
@@ -1063,14 +1055,13 @@ class VAEMModbusClient(ABC):
         if self._init_done:
             if activate not in (0, 1):
                 raise ValueError(f"Error, value inputted was {activate}, Either a 1 or 0 is accepted")
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.WRITE.value,
                 VaemIndex.ERRORHANDLING,
                 0,
                 int(not activate),
             )
-            frame = self._construct_frame(data)
-            self._transfer(frame)
+            self.send_command(data)
             self.error_handling_enabled = activate
             match activate:
                 case 0:
@@ -1081,7 +1072,7 @@ class VAEMModbusClient(ABC):
 
     def get_error_handling_status(self) -> int | None:
         """
-        Gets the current state of the internal error handling of the VAEM device.
+        Get the current state of the internal error handling of the VAEM device.
 
         Typical usage example:
             error_handling_status = vaem.get_error_handling_status()
@@ -1095,19 +1086,19 @@ class VAEMModbusClient(ABC):
             State of internal error handling. 1 for enabled, 0 for disabled
         """
         if self._init_done:
-            data = self._get_transfer_value(
+            data = self.get_transfer_value(
                 VaemAccess.READ.value,
                 VaemIndex.ERRORHANDLING,
                 0,
                 0,
             )
-            frame = self._construct_frame(data)
-            resp = self._transfer(frame)
-            return int(not self._deconstruct_frame(resp)["transferValue"])
+            resp = self.send_command(data)
+            if resp is not None:
+                return int(not resp["transferValue"])
         return None
 
 
-class VAEMModbusTCP(VAEMModbusClient):
+class VAEMModbusTCP(VAEMBase):
     """VAEM Modbus TCP client class."""
 
     client: ModbusTcpClient
@@ -1127,6 +1118,14 @@ class VAEMModbusTCP(VAEMModbusClient):
             ConnectionError: Connection error with device
             ModbusIOException: Error with Modbus connection
         """
+        self._read_param = {
+            "address": 0,
+            "length": 0x07,
+        }
+        self._write_param = {
+            "address": 0,
+            "length": 0x07,
+        }
         super().__init__(config)
         if not isinstance(config, VAEMTCPConfig):
             config_type = type(config)
@@ -1138,30 +1137,156 @@ class VAEMModbusTCP(VAEMModbusClient):
             self._config = config
             self.client = ModbusTcpClient(host=self._config.ip, port=self._config.port)
             self.client.connect()
+            self._init_done = True
             self._vaem_init()
-            self.version = None
-            self._read_param = {
-                "address": 0,
-                "length": 0x07,
-            }
-            self._write_param = {
-                "address": 0,
-                "length": 0x07,
-            }
-            self.active_valves = [0, 0, 0, 0, 0, 0, 0, 0]
         except ConnectionError as e:
             logger.error("Connection error: %s. ", str(e))
         except ModbusIOException as io_error:
             logger.error("Modbus IO error: %s. ", str(io_error))
             logger.info(self._config)
 
+    def _construct_frame(self, data: dict) -> list:
+        """
+        Construct data frame for transfer to VAEM device.
 
-class VAEMModbusSerial(VAEMModbusClient):
+        Args:
+            data (dict): Data to be sent to VAEM device
+        Returns:
+            list of values to be passed as the expected data type of the Modbus data frame
+        """
+        frame = []
+        tmp = struct.pack(
+            ">BBHBBQ",
+            data["access"],
+            data["dataType"],
+            data["paramIndex"],
+            data["paramSubIndex"],
+            data["errorRet"],
+            data["transferValue"],
+        )
+        try:
+            for i in range(0, len(tmp) - 1, 2):
+                frame.append((tmp[i] << 8) + tmp[i + 1])
+        except ValueError as e:
+            logger.error("Value error: %s. ", str(e))
+        return frame
+
+    def _deconstruct_frame(self, frame) -> dict | None:
+        """
+        Deconstruct incoming data frame from VAEM device.
+
+        Args:
+            frame: dict coming in from the device
+        Returns:
+            data: dictionary that contains the information from the dataframe.
+        """
+        data = {}
+        if frame:
+            data["access"] = (frame[0] & 0xFF00) >> 8
+            data["dataType"] = frame[0] & 0x00FF
+            data["paramIndex"] = frame[1]
+            data["paramSubIndex"] = (frame[2] & 0xFF00) >> 8
+            data["errorRet"] = frame[2] & 0x00FF
+            data["transferValue"] = 0
+            for i in range(4):
+                data["transferValue"] += frame[len(frame) - 1 - i] << (i * 16)
+        else:
+            logger.warning("Empty data frame received, potential operation error state detected: %s", frame)
+            return None
+        return data
+
+    def _transfer(self, write_data: list) -> list:
+        """
+        Transfer information from Python driver to device.
+
+        Args:
+            write_data: List of data that will be transferred to VAEM device
+        Returns:
+            Response from VAEM device.
+        """
+        data_registers = []
+        if not self.client.connected:
+            self.client.connect()
+        try:
+            data = self.client.readwrite_registers(
+                read_address=self._read_param["address"],
+                read_count=self._read_param["length"],
+                write_address=self._write_param["address"],
+                values=write_data,
+                device_id=self._config.unit_id,
+            )
+            time.sleep(0.001)
+            data_registers = data.registers
+        except ModbusException as modbus_error:
+            logger.error("Something went wrong with read opperation VAEM : %s", str(modbus_error))
+
+        return data_registers
+
+    def close_client(self) -> None:
+        """
+        Close the Modbus TCP client connection.
+
+        Typical usage example:
+            vaem.close_client()
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        try:
+            if self.client and self.client.connected:
+                self.client.close()
+                logger.info("Modbus TCP connection closed successfully.")
+        except Exception as error:
+            logger.error("Error occurred while closing Modbus TCP connection: %s", str(error))
+
+
+class VAEMSerial(VAEMBase):
     """Class used as the interface backend for using Serial communication."""
+
+    class EfficientSerial(serial.Serial):
+        """Efficient Serial Subclass.
+
+        Pyserial has known issues that make `Serial.readall` and `Serial.readline` very slow. This implementation address that
+        by
+        cf. https://github.com/pyserial/pyserial/issues/216#issuecomment-369414522
+        """
+
+        def __init__(self, *args, **kwargs):
+            """Initialize Efficient Serial class."""
+            super().__init__(*args, **kwargs)
+            self.buffer = bytearray()
+
+        def readline(self, size: int | None = -1, /, eol: bytes = b"\r") -> bytes:
+            """Read line serial method override."""
+            i = self.buffer.find(eol)
+            if i >= 0:
+                r = self.buffer[: i + 1]
+                self.buffer = self.buffer[i + 1 :]
+                return bytes(r)
+            while True:
+                i = max(1, min(2048, self.in_waiting))
+                data = self.read(i)
+                if not data:
+                    # Read timed out with no terminator; return whatever is buffered.
+                    r = bytes(self.buffer)
+                    self.buffer = bytearray()
+                    return r
+                i = data.find(eol)
+                if i >= 0:
+                    r = bytes(self.buffer + data[: i + 1])
+                    self.buffer = bytearray(data[i + 1 :])
+                    return r
+                else:
+                    self.buffer.extend(data)
+
+    client: EfficientSerial
 
     def __init__(self, config: VAEMSerialConfig):
         """
-        VAEMModbusSerial Constructor.
+        VAEMSerial Constructor.
 
         Args:
             config (VAEMSerialConfig): A configuration class designated for ModbusSerial
@@ -1170,27 +1295,279 @@ class VAEMModbusSerial(VAEMModbusClient):
             None
 
         Raises:
-            NotImplementedError: Interface currently in development.
             TypeError: Config does not match serial interface specs.
             RuntimeError: A runtime error with the serial interface has occurred.
         """
         super().__init__(config)
-        logger.error(
-            """Modbus Serial backend is currently an experimental feature. \
-            Attempting operation with this feature may result in unexpected or incorrect behavior. \
-            This will be available as a fully supported feature in future releases."""
-        )
-        raise NotImplementedError(
-            "Modbus Serial backend is not yet implemented. This will be available in future releases."
-        )
+        logger.info("Initializing VAEMSerial client")
         if not isinstance(config, VAEMSerialConfig):
             config_type = type(config)
             raise TypeError(
-                f"""Error: Config does not match the ModbusSerial backend.
+                f"""Error: Config does not match the Serial backend.
                             The type passed in was: {config_type}"""
             )
         try:
             self._config = config
-            self.client = ModbusSerialClient(port=self._config.com_port, baudrate=self._config.baudrate)
+            logger.debug(
+                "Opening serial connection on port=%s baudrate=%s",
+                self._config.com_port,
+                self._config.baudrate,
+            )
+            self.client = self.EfficientSerial(
+                port=self._config.com_port,
+                baudrate=self._config.baudrate,
+                bytesize=8,
+                parity="N",
+                stopbits=1,
+                timeout=1,  # TODO: comprehensive timeout setting function. Different for modbus and serial backends
+            )
+            # self.reader = ReadLine(self.client)
+            logger.info("Serial connection established on %s", self._config.com_port)
+            self._init_done = True
+            self._vaem_init()
         except RuntimeError as run_err:
             logger.error("Runtime error: %s. ", str(run_err))
+
+    def _list_to_ascii(self, command_list: list) -> str:
+        """
+        Convert command list to an ASCII telegram string and validate syntax.
+
+        Args:
+            command_list (list): Tokenized serial command frame.
+
+        Returns:
+            str: Validated ASCII telegram command.
+
+        Raises:
+            ValueError: Command list is empty or does not match expected VAEM syntax.
+        """
+        logger.debug("VAEMSerial._list_to_ascii called with command_list=%s", command_list)
+        if not command_list:
+            raise ValueError("Command list cannot be empty")
+        encoded = "".join(str(value) for value in command_list)
+        tx_valid = VAEM_SERIAL_REGEX["tx_write"].match(encoded) or VAEM_SERIAL_REGEX["tx_read"].match(encoded)
+        if not tx_valid:
+            raise ValueError(f"Invalid serial command format: {encoded!r}")
+        logger.debug("ASCII encoded command: %r", encoded)
+        return encoded
+
+    def _ascii_to_list(self, decoded_response_string: str) -> list:
+        """
+        Normalize and validate a serial ASCII response telegram.
+
+        Args:
+            decoded_response_string (str): Decoded response payload from serial interface.
+
+        Returns:
+            list: Tokenized response components (e.g., ["R", "U", "32", ":", "I", "7", "S", "1", "E", "0", "V", "1000"]).
+
+        Raises:
+            ValueError: Response is empty or does not match expected VAEM syntax.
+        """
+        logger.debug("VAEMSerial._ascii_to_list called with response=%r", decoded_response_string)
+        normalized = decoded_response_string.strip()
+        if not normalized:
+            raise ValueError("Empty serial response")
+        message = normalized.splitlines()[0].strip()
+
+        read_match = VAEM_SERIAL_REGEX["rx_read"].match(message)
+        write_match = VAEM_SERIAL_REGEX["rx_write"].match(message)
+        m = read_match if read_match is not None else write_match
+        if m is None:
+            raise ValueError(f"Invalid serial response format: {message!r}")
+        g = m.groupdict()
+        tokens: list = [
+            g["access"],
+            "U",
+            g["data_type"],
+            ":",
+        ]
+        if g.get("index") is not None and g.get("subindex") is not None:
+            tokens += ["I", g["index"], "S", g["subindex"]]
+        tokens += ["E", g["error_code"]]
+        if g.get("transfer_value") is not None:
+            tokens += ["V", g["transfer_value"]]
+
+        logger.debug("Parsed serial response tokens: %s", tokens)
+        return tokens
+
+    def _construct_frame(self, data: dict) -> list:
+        """
+        Construct data frame for transfer to VAEM device.
+
+        Args:
+            data (dict): Data to be sent to VAEM device
+        Returns:
+            string of values to be passed as the expected data type of the Modbus data frame
+        """
+        logger.debug(
+            "VAEMSerial._construct_frame called with access=%s index=%s sub_index=%s data_type=%s",
+            data.get("access"),
+            data.get("paramIndex"),
+            data.get("paramSubIndex"),
+            data.get("dataType"),
+        )
+        match data["dataType"]:
+            case 1:
+                data["dataType"] = "08"
+            case 2:
+                data["dataType"] = "16"
+            case 3:
+                data["dataType"] = "32"
+            case 4:
+                data["dataType"] = "64"
+            case _:
+                raise ValueError(f"Unspecified data type: {data['dataType']}")
+
+        match data["access"]:
+            case 0:
+                frame = [
+                    "R",
+                    "U",
+                    data["dataType"],
+                    ":",
+                    "I",
+                    data["paramIndex"],
+                    "S",
+                    data["paramSubIndex"],
+                    "\r",
+                ]
+            # pattern = "{access:l}U{data_type:d}:I{param_index:d}S{param_sub_index:d}V{transfer_value:d}<CR>"
+            # data_string = "WU32:I7S1V1000<CR>"
+            # parsed = parse(pattern, data_string)
+            # "WU32:I7S1V1000<CR>"
+            case 1:
+                frame = [
+                    "W",
+                    "U",
+                    data["dataType"],
+                    ":",
+                    "I",
+                    data["paramIndex"],
+                    "S",
+                    data["paramSubIndex"],
+                    "V",
+                    data["transferValue"],
+                    "\r",
+                ]
+            case _:
+                raise ValueError(f"Unknown access type: {data['access']}")
+
+        logger.debug("Constructed serial frame: %s", frame)
+        return frame
+
+    def _deconstruct_frame(self, frame) -> dict | None:
+        """
+        Deconstruct incoming tokenized data frame from VAEM device.
+
+        Args:
+            frame (list): Tokenized response components from _ascii_to_list.
+
+        Returns:
+            dict: Dictionary containing access, errorRet, and transferValue (if applicable).
+
+        Raises:
+            ValueError: Unable to parse frame or invalid token structure.
+        """
+        logger.debug("VAEMSerial._deconstruct_frame called with frame=%r", frame)
+        data = {}
+
+        # Frame layout from _ascii_to_list (index/subindex are optional in device replies):
+        #   read:  ["R", "U", dtype, ":", ("I", index, "S", subindex,)? "E", error, "V", value]
+        #   write: ["W", "U", dtype, ":", ("I", index, "S", subindex,)? "E", error]
+        if not frame:
+            logger.warning("Empty data frame received, potential operation error state detected: %s", frame)
+            return None
+
+        if not isinstance(frame, list) or "E" not in frame:
+            raise ValueError(f"Unable to parse serial frame: {frame!r}")
+
+        access_field = frame[0]  # "R" or "W"
+        data["errorRet"] = int(frame[frame.index("E") + 1])
+
+        if access_field == "R":
+            data["access"] = VaemAccess.READ.value
+            if "V" in frame:
+                data["transferValue"] = int(frame[frame.index("V") + 1])
+            logger.info("Returned Value: %s", data.get("transferValue"))
+            logger.info("Returned error: %s", data["errorRet"])
+            return data
+
+        if access_field == "W":
+            data["access"] = VaemAccess.WRITE.value
+            logger.debug("Parsed write response with errorRet=%s", data["errorRet"])
+            logger.info("Returned error: %s", data["errorRet"])
+            return data
+
+        raise ValueError(f"Unable to parse serial frame: {frame!r}")
+
+    def _transfer(self, write_data: list) -> list:
+        """
+        Transfer information from Python driver to device.
+
+        Args:
+            write_data: List of data that will be transferred to VAEM device
+        Returns:
+            Response from VAEM device.
+        """
+        parsed = []
+        logger.debug("VAEMSerial._transfer called with write_data=%s", write_data)
+        try:
+            encoded = self._list_to_ascii(write_data)
+            logger.debug("BYTES: %s", list(encoded))
+
+            self.client.reset_input_buffer()
+            self.client.buffer = bytearray()
+            logger.debug("Serial input buffer cleared")
+
+            bytes_written = self.client.write(encoded.encode("ascii"))
+            logger.debug("Serial write returned code: %s", bytes_written)
+            self.client.flush()
+            logger.debug("Serial bytes written and flushed")
+
+            expected_access = write_data[0] if write_data else None
+            expected_dtype = write_data[2] if len(write_data) > 2 else None
+            deadline = time.monotonic() + (self.client.timeout or 1.0)
+            while time.monotonic() < deadline:
+                raw = self.client.readline(eol=b"\r")
+                if not raw:
+                    break  # read timed out with no more data
+                try:
+                    decoded = raw.decode("ascii")
+                except UnicodeDecodeError:
+                    continue
+                try:
+                    tokens = self._ascii_to_list(decoded)
+                except ValueError:
+                    # Echo/prompt/blank line - keep streaming.
+                    continue
+                if tokens[0] == expected_access and tokens[2] == expected_dtype:
+                    parsed = tokens
+                    break
+            logger.debug("Parsed serial response: %s", parsed)
+        except Exception as error:
+            logger.error("Transfer error: %s", str(error))
+        return parsed
+
+    def close_client(self) -> None:
+        """
+        Close the serial client connection.
+
+        Typical usage example:
+            vaem.close_client()
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        logger.debug("VAEMSerial.close_client called")
+        try:
+            if self.client and self.client.is_open:
+                self.client.close()
+                logger.info("Serial connection closed successfully.")
+            else:
+                logger.debug("Serial connection already closed or not initialized")
+        except Exception as error:
+            logger.error("Error occurred while closing serial connection: %s", str(error))
