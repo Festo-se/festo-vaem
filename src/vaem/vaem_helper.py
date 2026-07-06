@@ -4,6 +4,7 @@ Helper functions for VAEM driver.
 For further reference, see the VAEM documentation found at the Product Page or Operation Instructions.
 """
 
+import re
 from enum import IntEnum
 
 vaemValveIndex = {
@@ -62,7 +63,7 @@ class VaemIndex(IntEnum):
         SWITCHINGTIME (0x07): Switching Time
         PICKUPTIME (0x08): Pick Up Time
         OPERATINGMODE (0x09): Operating Mode
-        SAVEPARAMETERS (0x11): Save Parameters
+        SAVEPARAMETERS (0x0B): Save Parameters
         SELECTVALVE (0x13): Select Valve
         TIMEDELAY (0x16): Time Delay
         ERRORHANDLING (0x2D): Activate or Deactivate Error Handling
@@ -77,7 +78,7 @@ class VaemIndex(IntEnum):
     SWITCHINGTIME = 0x07
     PICKUPTIME = 0x08
     OPERATINGMODE = 0x09
-    SAVEPARAMETERS = 0x11
+    SAVEPARAMETERS = 0x0B
     SELECTVALVE = 0x13
     TIMEDELAY = 0x16
     ERRORHANDLING = 0x2D
@@ -89,12 +90,14 @@ class VaemControlWords(IntEnum):
     Enum class for the VAEM control words.
 
     Attributes:
+        RESETSTATE (0x00): Reset the state back to 0
         STARTVALVES (0x01): Start Valves
         STOPVALVES (0x04): Stop Valves
         RESETERRORS (0x08): Reset Errors
         STARTVALVESRESETERROR (0x09): Start valves and reset error bit after completion
     """
 
+    RESETSTATE = 0x00
     STARTVALVES = 0x01
     STOPVALVES = 0x04
     RESETERRORS = 0x08
@@ -114,3 +117,28 @@ class VaemOperatingMode(IntEnum):
     OPMODE1 = 0x00
     OPMODE2 = 0x01
     OPMODE3 = 0x02
+
+
+VAEM_SERIAL_PATTERNS = {
+    "tx_write": (
+        r"^(?P<access>W)U(?P<data_type>08|16|32|64)"
+        r":I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*)"
+        r"V(?P<transfer_value>0|[1-9]\d*)\r?$"
+    ),
+    "tx_read": (
+        r"^(?P<access>R)U(?P<data_type>08|16|32|64)"
+        r":I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*)\r?$"
+    ),
+    "rx_write": (
+        r"^[>R]?(?P<access>W)U(?P<data_type>08|16|32|64)"
+        r":(?:I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*))?"
+        r"E(?P<error_code>0|[1-9]\d*)\r?$"
+    ),
+    "rx_read": (
+        r"^[>R]?(?P<access>R)U(?P<data_type>08|16|32|64)"
+        r":(?:I(?P<index>0|[1-9]\d*)S(?P<subindex>0|[1-9]\d*))?"
+        r"E(?P<error_code>0|[1-9]\d*)V(?P<transfer_value>0|[1-9]\d*)\r?$"
+    ),
+}
+
+VAEM_SERIAL_REGEX = {name: re.compile(pattern) for name, pattern in VAEM_SERIAL_PATTERNS.items()}
