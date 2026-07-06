@@ -1,0 +1,12 @@
+{
+    "recommendations": [
+        "github.vscode-pull-request-github",
+        "github.remotehub",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "astral-sh.ty",
+        "be5invis.toml",
+        "ms-python.debugpy",
+        "tamasfe.even-better-toml"
+    ]
+}

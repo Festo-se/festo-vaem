@@ -14,10 +14,11 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 keywords = ["Festo", "Valve", "Valves", "Actuation", "Valve Controller", "Controller"]
-version = "0.2.2"
+version = "0.3.0"
 requires-python = ">=3.10"
 dependencies = [
     "pymodbus<=3.11.4",
+    "pyserial<=3.5",
 ]
 
 [project.urls]
@@ -43,7 +44,8 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.14.0",
     "ruff",
-    "ty"
+    "ty",
+    "pyinstrument>=5.1.2",
 ]
 docs = [
     "mkdocs>=1.6.1",
@@ -106,6 +108,7 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = [
     "hardware: marks tests as hardware integration tests (deselect with '-m \"not hardware\"')",
 ]
