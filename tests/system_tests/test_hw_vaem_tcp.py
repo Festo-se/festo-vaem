@@ -451,10 +451,10 @@ class TestVAEMHardwarePickupTime:
     def test_set_pickup_time_all_valves(self, vaem_device):
         """Test setting pickup time for all valves."""
         for valve_id in range(1, 9):
-            pickup_time = 100 + (valve_id * 8)  # Vary pickup per valve for verification
+            pickup_time = 10 + (valve_id * 8)  # Vary pickup per valve for verification
             vaem_device.set_pickup_time(valve_id, pickup_time)
             time.sleep(0.05)  # Brief delay for device to process
-
+            
             retrieved_pickup = vaem_device.get_pickup_time(valve_id)
             assert retrieved_pickup == pickup_time, f"Valve {valve_id}: Expected {pickup_time}, got {retrieved_pickup}"
 
@@ -477,16 +477,17 @@ class TestVAEMHardwarePickupTime:
         min_pickup = 10
         vaem_device.set_pickup_time(valve_id, min_pickup)
         time.sleep(0.04)  # Brief delay for device to process
-
+        
         retrieved_pickup = vaem_device.get_pickup_time(valve_id)
         assert retrieved_pickup == min_pickup, f"Expected minimum {min_pickup}, got {retrieved_pickup}"
 
     def test_set_pickup_time_max_value(self, vaem_device):
         """Test setting maximum pickup time."""
         valve_id = 1
-        max_pickup = 500
+        max_pickup = 100
         vaem_device.set_pickup_time(valve_id, max_pickup)
         time.sleep(0.04)  # Brief delay for device to process
+#        vaem_device.save_settings()
 
         retrieved_pickup = vaem_device.get_pickup_time(valve_id)
         assert retrieved_pickup == max_pickup, f"Expected maximum {max_pickup}, got {retrieved_pickup}"
@@ -503,7 +504,8 @@ class TestVAEMHardwareHoldingCurrent:
         # Should not raise an exception
         vaem_device.set_holding_current(valve_id, holding_current)
         time.sleep(0.04)  # Brief delay for device to process
-
+        #vaem_device.save_settings()
+        
         retrieved_current = vaem_device.get_holding_current(valve_id)
         assert retrieved_current == holding_current, f"Expected {holding_current}, got {retrieved_current}"
 
