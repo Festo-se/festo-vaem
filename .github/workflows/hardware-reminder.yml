@@ -1,6 +1,7 @@
 name: "Pull request hardware test reminder"
 on:
   pull_request:
+    types: [opened, reopened]
 
 permissions:
   contents: read
