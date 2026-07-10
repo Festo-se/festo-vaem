@@ -887,7 +887,7 @@ class VAEMBase(ABC):
         if self._init_done:
             if valve_id not in range(1, 9):
                 raise ValueError(f"Error, input valve ID was {valve_id}, ID's range from 1-8")
-            if pickup_time not in range(1, 501):
+            if pickup_time not in range(1, 101):
                 raise ValueError(f"Error, input pickup time was {pickup_time} ms, This is out of the range of 1-500 ms")
             pickup_time = int(pickup_time / 0.2)
             data = self.get_transfer_value(
