@@ -7,6 +7,15 @@ For further reference, see the VAEM documentation found at the Product Page or O
 import re
 from enum import IntEnum
 
+
+class VaemCommunicationError(ConnectionError):
+    """Raised when communication with the VAEM device fails and no valid response is received."""
+
+
+class VaemDeviceError(RuntimeError):
+    """Raised when the VAEM device reports a non-zero error code in response to a command."""
+
+
 vaemValveIndex = {
     1: 0x01,
     2: 0x02,

@@ -24,6 +24,8 @@ from .vaem_helper import (
     VaemOperatingMode,
     vaemValveIndex,
     VAEM_SERIAL_REGEX,
+    VaemCommunicationError,
+    VaemDeviceError,
 )
 
 logger = logging.getLogger(__name__)
@@ -196,8 +198,11 @@ class VAEMBase(ABC):
         """
         frame = self._construct_frame(data)
         resp = self._transfer(frame)
-        if resp is not None:
-            resp = self._deconstruct_frame(resp)
+        if not resp:
+            raise VaemCommunicationError(f"No response received from VAEM device for command: {data}")
+        resp = self._deconstruct_frame(resp)
+        if resp is None:
+            raise VaemCommunicationError(f"Failed to parse response from VAEM device for command: {data}")
         return resp
 
     def _vaem_init(self):
@@ -327,7 +332,7 @@ class VAEMBase(ABC):
                     VaemAccess.READ.value,
                     VaemIndex.SELECTVALVE,
                     vaemValveIndex[valve_id],
-                )
+                )  # TODO: IS this right? Do we have to read the selected valves first?
                 resp = self.send_command(data)
                 if resp is None:
                     logger.warning("Failed to read select valve status")
@@ -404,7 +409,7 @@ class VAEMBase(ABC):
                     0,
                     VaemControlWords.STARTVALVES.value,
                 )
-                self.send_command(data)
+                resp = self.send_command(data)
             else:
                 data = self.get_transfer_value(
                     VaemAccess.WRITE.value,
@@ -412,8 +417,10 @@ class VAEMBase(ABC):
                     0,
                     VaemControlWords.STARTVALVESRESETERROR.value,
                 )
-                self.send_command(data)
+                resp = self.send_command(data)
 
+            if resp is not None and resp["errorRet"] != 0:
+                raise VaemDeviceError(f"VAEM device reported an error opening valves, error code: {resp['errorRet']}")
             self.clear_control_word()
         else:
             logger.warning("No VAEM Connected!!")
@@ -467,7 +474,9 @@ class VAEMBase(ABC):
                 0,
                 VaemControlWords.STOPVALVES.value,
             )
-            self.send_command(data)
+            resp = self.send_command(data)
+            if resp is not None and resp["errorRet"] != 0:
+                raise VaemDeviceError(f"VAEM device reported an error closing valves, error code: {resp['errorRet']}")
             self.clear_error()
         else:
             logger.warning("No VAEM Connected!!")
@@ -1205,9 +1214,10 @@ class VAEMModbusTCP(VAEMBase):
             Response from VAEM device.
         """
         data_registers = []
-        if not self.client.connected:
-            self.client.connect()
+
         try:
+            if not self.client.connected:
+                self.client.connect()
             data = self.client.readwrite_registers(
                 read_address=self._read_param["address"],
                 read_count=self._read_param["length"],
@@ -1307,26 +1317,30 @@ class VAEMSerial(VAEMBase):
                             The type passed in was: {config_type}"""
             )
         try:
-            self._config = config
-            logger.debug(
-                "Opening serial connection on port=%s baudrate=%s",
-                self._config.com_port,
-                self._config.baudrate,
-            )
-            self.client = self.EfficientSerial(
-                port=self._config.com_port,
-                baudrate=self._config.baudrate,
-                bytesize=8,
-                parity="N",
-                stopbits=1,
-                timeout=1,  # TODO: comprehensive timeout setting function. Different for modbus and serial backends
-            )
-            # self.reader = ReadLine(self.client)
-            logger.info("Serial connection established on %s", self._config.com_port)
+            self._serial_connect(config)
             self._init_done = True
             self._vaem_init()
         except RuntimeError as run_err:
             logger.error("Runtime error: %s. ", str(run_err))
+
+    def _serial_connect(self, config):
+        self._config = config
+        logger.debug(
+            "Opening serial connection on port=%s baudrate=%s",
+            self._config.com_port,
+            self._config.baudrate,
+        )
+        self.client = self.EfficientSerial(
+            port=self._config.com_port,
+            baudrate=self._config.baudrate,
+            bytesize=8,
+            parity="N",
+            stopbits=1,
+            timeout=1,  # TODO: comprehensive timeout setting function. Different for modbus and serial backends
+        )
+        # self.client.
+        # self.reader = ReadLine(self.client)
+        logger.info("Serial connection established on %s", self._config.com_port)
 
     def _list_to_ascii(self, command_list: list) -> str:
         """
@@ -1512,7 +1526,10 @@ class VAEMSerial(VAEMBase):
         """
         parsed = []
         logger.debug("VAEMSerial._transfer called with write_data=%s", write_data)
+
         try:
+            if not self.client.is_open:
+                self.client.open()
             encoded = self._list_to_ascii(write_data)
             logger.debug("BYTES: %s", list(encoded))
 
@@ -1545,7 +1562,7 @@ class VAEMSerial(VAEMBase):
                     parsed = tokens
                     break
             logger.debug("Parsed serial response: %s", parsed)
-        except Exception as error:
+        except serial.SerialException as error:
             logger.error("Transfer error: %s", str(error))
         return parsed
 

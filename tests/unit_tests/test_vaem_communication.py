@@ -8,7 +8,7 @@ including frame construction/deconstruction and device operations.
 import pytest
 from pymodbus.exceptions import ModbusException
 from vaem.vaem_communication import VAEMModbusTCP, VAEMSerial
-from vaem.vaem_helper import VaemIndex, VaemDataType, VaemAccess
+from vaem.vaem_helper import VaemIndex, VaemDataType, VaemAccess, VaemCommunicationError
 
 
 class TestVAEMModbusClientFrameConstruction:
@@ -98,20 +98,22 @@ class TestVAEMModbusClientFrameDeconstruction:
 
 
 class TestVAEMModbusClientFailedTransfer:
-    """Test that a failed transfer surfaces as None rather than crashing callers."""
+    """Test that a failed transfer raises rather than silently returning."""
 
-    def test_send_command_returns_none_on_transfer_failure(self, vaem_tcp_backend):
-        """Test send_command returns None when the Modbus transfer fails."""
+    def test_send_command_raises_on_transfer_failure(self, vaem_tcp_backend):
+        """Test send_command raises VaemCommunicationError when the Modbus transfer fails."""
         backend = vaem_tcp_backend
         backend.client.readwrite_registers.side_effect = ModbusException("connection lost")
         data = backend.get_transfer_value(VaemAccess.READ.value, VaemIndex.STATUSWORD, 0, 0)
-        assert backend.send_command(data) is None
+        with pytest.raises(VaemCommunicationError):
+            backend.send_command(data)
 
-    def test_getter_returns_none_on_transfer_failure(self, vaem_tcp_backend):
-        """Test a getter returns None (no KeyError) when the transfer fails."""
+    def test_getter_raises_on_transfer_failure(self, vaem_tcp_backend):
+        """Test a getter raises VaemCommunicationError when the transfer fails."""
         backend = vaem_tcp_backend
         backend.client.readwrite_registers.side_effect = ModbusException("connection lost")
-        assert backend.get_inrush_current(valve_id=1) is None
+        with pytest.raises(VaemCommunicationError):
+            backend.get_inrush_current(valve_id=1)
 
 
 class TestVAEMModbusClientGetTransferValue:
