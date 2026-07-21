@@ -195,6 +195,9 @@ class VAEMBase(ABC):
 
         Returns:
             Dictionary of response data from VAEM device.
+
+        Raises:
+            VaemCommunicationError: VAEM device response failure for given command
         """
         frame = self._construct_frame(data)
         resp = self._transfer(frame)
@@ -399,6 +402,8 @@ class VAEMBase(ABC):
             None
         Returns:
             None
+        Raises:
+            VaemDeviceError: VAEM device error on opening valves
         """
         if self._init_done:
             # save settings
@@ -465,6 +470,8 @@ class VAEMBase(ABC):
 
         Returns:
             None
+        Raises:
+            VaemDeviceError: VAEM device error on closing valves
         """
         if self._init_done:
             # save settings
