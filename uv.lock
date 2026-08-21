@@ -440,7 +440,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -505,7 +505,7 @@ provides-extras = ["serial"]
 dev = [
     { name = "festo-python-logging", specifier = ">=0.0.10" },
     { name = "pyinstrument", specifier = ">=5.1.2" },
-    { name = "pymodbus", extras = ["simulator"], specifier = "<=3.14.0" },
+    { name = "pymodbus", extras = ["simulator"], specifier = "<=3.15.0" },
     { name = "pyserial", specifier = "<=3.5" },
     { name = "pytest", specifier = ">=9.0.1" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
@@ -857,8 +857,8 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 dependencies = [
-    { name = "mkdocs", marker = "python_full_version < '3.11'" },
-    { name = "pygments", marker = "python_full_version < '3.11'" },
+    { name = "mkdocs" },
+    { name = "pygments" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1b/b5/f72df157abc7f85e33ffa417464e9dd535ef5fda7654eda41190047a53b6/mkdocs-codeinclude-plugin-0.2.1.tar.gz", hash = "sha256:305387f67a885f0e36ec1cf977324fe1fe50d31301147194b63631d0864601b1", size = 8140, upload-time = "2023-03-01T19:57:06.724Z" }
 wheels = [
@@ -874,8 +874,8 @@ resolution-markers = [
     "python_full_version == '3.11.*'",
 ]
 dependencies = [
-    { name = "mkdocs", marker = "python_full_version >= '3.11'" },
-    { name = "pygments", marker = "python_full_version >= '3.11'" },
+    { name = "mkdocs" },
+    { name = "pygments" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/31/3b/86c32ce13d966f00c7e05fda0ae824bd7a386a49958a4b18566f3896482d/mkdocs_codeinclude_plugin-0.3.1.tar.gz", hash = "sha256:06bbbf0d4ac7eccaec6e0d89ce76d644a197cfed34880f541516e722ded6512a", size = 12988, upload-time = "2026-02-20T19:11:56.767Z" }
 wheels = [
@@ -1368,11 +1368,11 @@ wheels = [
 
 [[package]]
 name = "pymodbus"
-version = "3.14.0"
+version = "3.15.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/90/55/ea2a6bb2e61926013df736cf7bba2405caafad36ab919bc6104c3cad1ea0/pymodbus-3.14.0.tar.gz", hash = "sha256:f1f486ec45b77b7565c5168c9609e244a4a6428d386f3cff56eb85a2297cd10c", size = 165886, upload-time = "2026-07-12T14:22:48.02Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/b8/03dace16e0e5d1c3eb16e8b9bcce9885f5e8a38db34345ec375cd70ed2e2/pymodbus-3.15.0.tar.gz", hash = "sha256:4c5f715128bfeba59f4c9fb3542b0c32a8afd4b90081111e39c12f7af0c89aae", size = 168238, upload-time = "2026-08-13T09:33:33.049Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/22/18/614c8e62787b5057317c1f59e632ee842717c169f4d27440b724ade19d9f/pymodbus-3.14.0-py3-none-any.whl", hash = "sha256:408f7a9594073a979e7749f0225508b8491ef74fa1979c81011dee96a7a7570c", size = 166539, upload-time = "2026-07-12T14:22:46.391Z" },
+    { url = "https://files.pythonhosted.org/packages/27/7b/fa75ca74270ad3786234c6573f3c6c524441d3eb686882e280c717ce6d04/pymodbus-3.15.0-py3-none-any.whl", hash = "sha256:74d8dee961f23845f18a8481253183504dca05c4fcd102890cd28f4d7ce09267", size = 167602, upload-time = "2026-08-13T09:33:31.474Z" },
 ]
 
 [package.optional-dependencies]
